@@ -2,8 +2,8 @@ import { defineConfig } from 'vite';
 import { resolve } from 'path';
 
 export default defineConfig({
-  // Base path for GitHub Pages (update with your repo name)
-  base: '/orbrya-engine/',
+  // Base path for GitHub Pages
+  base: '/orbrya_engine_prototype/',
   
   build: {
     outDir: 'dist',
