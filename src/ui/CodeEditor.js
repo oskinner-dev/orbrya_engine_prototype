@@ -73,9 +73,9 @@ export class CodeEditor {
                 <button class="editor-btn run-btn" id="run-code-btn" title="Run Code">▶ Run</button>
                 <button class="editor-btn" id="undo-btn" title="Undo">↩</button>
             </div>
-            <div class="code-editor" style="flex:1; overflow:hidden; min-height:0;">
-                <div class="line-numbers" id="line-numbers"></div>
-                <div class="code-area" id="code-area" contenteditable="true" spellcheck="false"></div>
+            <div class="code-editor" style="flex:1; display:flex; min-height:0;">
+                <div class="line-numbers" id="line-numbers" style="overflow-y:auto;"></div>
+                <div class="code-area" id="code-area" contenteditable="true" spellcheck="false" style="flex:1; overflow:auto;"></div>
             </div>
             <div class="console-output" id="console-output" style="flex-shrink:0;">
                 <div class="console-line info">📝 Ready - Edit the code and click Run</div>
