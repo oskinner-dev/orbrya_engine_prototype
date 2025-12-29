@@ -165,6 +165,7 @@ export class CodeExecutor {
      * Execute code - parse and apply to scene
      */
     execute(code) {
+        console.log('[CodeExecutor] Execute called');
         const execResult = {
             success: false,
             treeCount: 0,

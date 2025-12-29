@@ -53,6 +53,9 @@ export class CodeEditor {
         this.executor.onExecute = (result) => this.onExecuteSuccess(result);
         this.executor.onError = (result) => this.onExecuteError(result);
         
+        // Guard: only execute on explicit Run click
+        this.canExecute = false;
+        
         return this;
     }
 
@@ -193,6 +196,7 @@ public class MemoryDemo : ScenarioBase
     // ========== EXECUTION METHODS ==========
 
     runCode() {
+        console.log('[CodeEditor] Run button clicked');
         const code = this.codeArea.textContent;
         this.log('info', '▶ Running code...');
         

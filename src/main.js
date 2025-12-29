@@ -126,15 +126,23 @@ class OrbryaEngine {
 
     setupKeyboardShortcuts() {
         document.addEventListener('keydown', (e) => {
+            // Don't trigger shortcuts when typing in editor
+            const target = e.target;
+            const isEditing = target.contentEditable === 'true' || 
+                              target.tagName === 'INPUT' || 
+                              target.tagName === 'TEXTAREA' ||
+                              target.closest('.code-area');
+            
+            if (isEditing) return;
+            
             // T - Cycle tree count
             if (e.key === 't' || e.key === 'T') {
-                if (document.activeElement.contentEditable !== 'true') {
-                    const levels = [25, 50, 100, 175, 300];
-                    const current = this.sceneController.currentTreeCount;
-                    const idx = levels.indexOf(current);
-                    const next = levels[(idx + 1) % levels.length];
-                    this.sceneController.spawnTrees(next);
-                }
+                const levels = [25, 50, 100, 175, 300];
+                const current = this.sceneController.currentTreeCount;
+                const idx = levels.indexOf(current);
+                const next = levels[(idx + 1) % levels.length];
+                this.sceneController.spawnTrees(next);
+                console.log(`[Shortcut] T pressed - cycling to ${next} trees`);
             }
             
             // F11 - Toggle viewport maximize
