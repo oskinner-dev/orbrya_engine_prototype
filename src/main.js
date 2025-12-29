@@ -24,6 +24,7 @@ class OrbryaEngine {
         this.profiler = null;
         this.codeEditor = null;
         this.hierarchy = null;
+        this.liteMode = false;
     }
 
     async init() {
@@ -150,7 +151,41 @@ class OrbryaEngine {
                 e.preventDefault();
                 this.panelManager.toggleMaximize('viewport-panel');
             }
+            
+            // L - Lite Mode (hide side panels for max FPS)
+            if (e.key === 'l' || e.key === 'L') {
+                this.toggleLiteMode();
+            }
+            
+            // P - Toggle profiler panel
+            if (e.key === 'p' || e.key === 'P') {
+                const profilerPanel = document.getElementById('profiler-panel');
+                if (profilerPanel) {
+                    profilerPanel.style.display = profilerPanel.style.display === 'none' ? '' : 'none';
+                }
+            }
         });
+    }
+    
+    toggleLiteMode() {
+        this.liteMode = !this.liteMode;
+        
+        const panels = ['profiler-panel', 'code-editor-panel', 'hierarchy-panel'];
+        panels.forEach(id => {
+            const panel = document.getElementById(id);
+            if (panel) {
+                panel.style.display = this.liteMode ? 'none' : '';
+            }
+        });
+        
+        // Also stop profiler updates in lite mode
+        if (this.liteMode) {
+            this.profiler.stopUpdates();
+            console.log('[LiteMode] Enabled - panels hidden, profiler stopped');
+        } else {
+            this.profiler.startUpdates();
+            console.log('[LiteMode] Disabled - panels restored');
+        }
     }
 
 
