@@ -218,6 +218,12 @@ html, body {
     padding: 10px;
 }
 
+/* Code editor panel needs special handling - no padding, no scroll on content */
+#code-editor-panel .panel-content {
+    padding: 0;
+    overflow: hidden;
+}
+
 .panel-content::-webkit-scrollbar {
     width: 8px;
     height: 8px;
@@ -482,12 +488,18 @@ html, body {
 
 /* Code editor area */
 .code-editor-wrapper {
-    flex: 1;
     display: flex;
     flex-direction: column;
+    height: 100%;
     overflow: hidden;
 }
 
+/* Toolbar stays fixed at top */
+.code-editor-wrapper .editor-toolbar {
+    flex-shrink: 0;
+}
+
+/* Code editor takes remaining space */
 .code-editor {
     flex: 1;
     display: flex;
@@ -495,6 +507,8 @@ html, body {
     font-size: 13px;
     line-height: 1.5;
     background: var(--bg-darkest);
+    overflow: hidden;
+    min-height: 0; /* Important for flex children to shrink */
 }
 
 .line-numbers {
@@ -505,6 +519,8 @@ html, body {
     user-select: none;
     border-right: 1px solid var(--border-color);
     min-width: 40px;
+    overflow-y: auto;
+    overflow-x: hidden;
 }
 
 .line-numbers div {
