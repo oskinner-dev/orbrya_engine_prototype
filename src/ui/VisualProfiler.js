@@ -174,8 +174,8 @@ export class VisualProfiler {
 
     startUpdates() {
         if (this.updateInterval) return;
-        // 500ms interval - much lighter on N4000
-        this.updateInterval = setInterval(() => this.sampleMetrics(), 500);
+        // 1000ms interval - minimal overhead for N4000
+        this.updateInterval = setInterval(() => this.sampleMetrics(), 1000);
     }
 
     stopUpdates() {
@@ -256,9 +256,9 @@ export class VisualProfiler {
         this.elements.triangles.textContent = triangles > 1000 ? `${(triangles/1000).toFixed(1)}K` : triangles;
         this.elements.geometries.textContent = geometries;
         
-        // Graph every 2nd update (1 second)
+        // Graph every 3rd update (3 seconds) - reduce canvas overhead
         this.graphUpdateCounter++;
-        if (this.graphUpdateCounter >= 2) {
+        if (this.graphUpdateCounter >= 3) {
             this.drawGraph();
             this.graphUpdateCounter = 0;
         }

@@ -136,14 +136,14 @@
 
     <!-- Keyboard shortcuts info (tooltip) -->
     <script>
-        // Update status bar with tree count and FPS
+        // Update status bar with tree count and FPS (1s interval for performance)
         setInterval(() => {
             if (window.orbrya?.sceneController) {
                 const sc = window.orbrya.sceneController;
                 document.getElementById('status-trees').textContent = `Trees: ${sc.currentTreeCount}`;
                 document.getElementById('status-fps').textContent = `FPS: ${sc.currentFps}`;
             }
-        }, 500);
+        }, 1000);
 
         // Help overlay toggle
         document.addEventListener('keydown', (e) => {

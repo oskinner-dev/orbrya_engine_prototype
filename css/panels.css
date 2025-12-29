@@ -122,22 +122,19 @@ html, body {
 /* ===== PANEL SYSTEM ===== */
 .panel {
     position: absolute;
-    background: var(--glassmorphism);
-    backdrop-filter: blur(10px);
+    background: var(--bg-panel);
     border: 1px solid var(--border-color);
     border-radius: var(--panel-radius);
-    box-shadow: var(--panel-shadow);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
     display: flex;
     flex-direction: column;
     min-width: 200px;
     min-height: 150px;
     z-index: 100;
-    transition: box-shadow var(--transition-fast);
 }
 
 .panel.focused {
     border-color: var(--accent-primary);
-    box-shadow: 0 0 0 1px var(--accent-primary), var(--panel-shadow);
     z-index: 200;
 }
 
