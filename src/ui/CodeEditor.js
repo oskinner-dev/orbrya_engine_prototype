@@ -1,49 +1,60 @@
 /**
- * CodeEditor.js - C# Code Editor for Orbrya
+ * CodeEditor.js - C# Code Editor with Execution
  * 
  * Features:
  * - Syntax highlighting for C#
  * - Line numbers
- * - Error highlighting
- * - Console output
- * - Real-time code validation
- * 
- * Uses debouncing (300ms) for performance on N4000
+ * - Console output with errors/warnings
+ * - Integration with CodeExecutor
+ * - Real-time validation (debounced)
  */
 
+import { CodeExecutor } from '../engine/CodeExecutor.js';
+
 export class CodeEditor {
-    constructor(panelManager, sceneController) {
+    constructor(panelManager, sceneController, profiler = null) {
         this.panelManager = panelManager;
         this.sceneController = sceneController;
+        this.profiler = profiler;
+        this.executor = null;
         this.panel = null;
+        
+        // DOM elements
         this.codeArea = null;
         this.lineNumbers = null;
         this.consoleOutput = null;
         
-        // Current script state
+        // State
         this.currentScript = '';
-        this.errors = [];
-        
-        // Debounce timer for parsing
         this.parseTimeout = null;
-        this.parseDelay = 300; // N4000 optimized debounce
+        this.parseDelay = 500; // Debounce for N4000
         
-        // C# keywords for highlighting
+        // C# syntax
         this.keywords = [
             'using', 'namespace', 'class', 'public', 'private', 'protected',
             'static', 'void', 'int', 'float', 'bool', 'string', 'var',
             'if', 'else', 'for', 'foreach', 'while', 'do', 'switch', 'case',
-            'break', 'continue', 'return', 'new', 'this', 'base', 'null',
-            'true', 'false', 'try', 'catch', 'finally', 'throw'
+            'break', 'continue', 'return', 'new', 'this', 'null', 'true', 'false',
+            'override'
         ];
         
         this.types = [
-            'GameObject', 'Transform', 'Vector3', 'Quaternion', 'MonoBehaviour',
-            'Rigidbody', 'Collider', 'Material', 'Mesh', 'Color',
-            'Console', 'Debug', 'Time', 'Input', 'Math', 'Random'
+            'GameObject', 'Transform', 'Vector3', 'MonoBehaviour',
+            'Debug', 'Console', 'Math', 'Random', 'Profiler',
+            'ForestScene', 'ScenarioBase'
         ];
     }
 
+    init() {
+        // Create executor
+        this.executor = new CodeExecutor(this.sceneController, this.profiler);
+        
+        // Wire callbacks
+        this.executor.onExecute = (result) => this.onExecuteSuccess(result);
+        this.executor.onError = (result) => this.onExecuteError(result);
+        
+        return this;
+    }
 
     createPanel() {
         const content = document.createElement('div');
@@ -51,32 +62,33 @@ export class CodeEditor {
         content.innerHTML = `
             <div class="editor-toolbar">
                 <select id="script-selector">
-                    <option value="TreeSpawner">TreeSpawner.cs</option>
-                    <option value="PerformanceDemo">PerformanceDemo.cs</option>
+                    <option value="TreeSpawner">🌲 TreeSpawner.cs</option>
+                    <option value="MemoryDemo">💾 MemoryDemo.cs</option>
                 </select>
-                <button class="run-btn" id="run-code-btn">▶ Run</button>
+                <button class="editor-btn" id="validate-btn" title="Validate">✓</button>
+                <button class="editor-btn run-btn" id="run-code-btn" title="Run Code">▶ Run</button>
+                <button class="editor-btn" id="undo-btn" title="Undo">↩</button>
             </div>
             <div class="code-editor">
                 <div class="line-numbers" id="line-numbers"></div>
                 <div class="code-area" id="code-area" contenteditable="true" spellcheck="false"></div>
             </div>
             <div class="console-output" id="console-output">
-                <div class="console-line info">[Console] Ready</div>
+                <div class="console-line info">📝 Ready - Edit the code and click Run</div>
             </div>
         `;
 
-        // Create panel
-        const saved = this.panelManager.getSavedState('code-editor-panel');
+        const saved = this.panelManager?.getSavedState('code-editor-panel');
         this.panel = this.panelManager.createPanel({
             id: 'code-editor-panel',
             title: 'Code Editor',
             icon: '📝',
-            x: saved?.x ?? window.innerWidth - 560,
+            x: saved?.x ?? window.innerWidth - 500,
             y: saved?.y ?? 50,
-            width: saved?.width ?? 450,
-            height: saved?.height ?? 500,
-            minWidth: 350,
-            minHeight: 250,
+            width: saved?.width ?? 480,
+            height: saved?.height ?? 520,
+            minWidth: 380,
+            minHeight: 300,
             content
         });
 
@@ -85,130 +97,192 @@ export class CodeEditor {
         this.lineNumbers = document.getElementById('line-numbers');
         this.consoleOutput = document.getElementById('console-output');
 
-
         // Event listeners
         this.codeArea.addEventListener('input', () => this.onCodeChange());
         this.codeArea.addEventListener('scroll', () => this.syncScroll());
         this.codeArea.addEventListener('keydown', (e) => this.handleKeyDown(e));
         
-        document.getElementById('run-code-btn').addEventListener('click', () => {
-            this.runCode();
-        });
-        
-        document.getElementById('script-selector').addEventListener('change', (e) => {
-            this.loadScript(e.target.value);
-        });
+        document.getElementById('run-code-btn').addEventListener('click', () => this.runCode());
+        document.getElementById('validate-btn').addEventListener('click', () => this.validateCode());
+        document.getElementById('undo-btn').addEventListener('click', () => this.undoCode());
+        document.getElementById('script-selector').addEventListener('change', (e) => this.loadScript(e.target.value));
 
-        // Load default script
+        // Load default
         this.loadScript('TreeSpawner');
-
         return this.panel;
     }
 
     loadScript(name) {
         const scripts = {
-            TreeSpawner: `// TreeSpawner.cs - Control tree count
-// FIX: The AI made the tree count too high!
-// Edit the maxTrees value to improve FPS
+            TreeSpawner: `// ════════════════════════════════════════════
+// ORBRYA SCENARIO: Forest Optimization
+// ════════════════════════════════════════════
+// 
+// 🔴 PROBLEM: The AI spawned infinite trees!
+// The frame rate has crashed. Fix the bug!
+//
+// 🎯 TASK: Change the while condition to limit trees
+// 💡 HINT: Try "treeCount < 50"
+// ════════════════════════════════════════════
 
-using UnityEngine;
+using Orbrya.Engine;
 
-public class TreeSpawner : MonoBehaviour
+public class TreeSpawner : ScenarioBase
 {
-    // TODO: Lower this value to fix performance
-    public int maxTrees = 500;  // ⚠️ Too many trees!
-    
-    void Start()
+    private int treeCount = 0;
+
+    public void SpawnTrees()
     {
-        // Spawn trees in the scene
-        for (int i = 0; i < maxTrees; i++)
+        treeCount = 0;
+        
+        // ╔══════════════════════════════════════╗
+        // ║  🔧 FIX THE BUG BELOW!               ║
+        // ╚══════════════════════════════════════╝
+        
+        while (true)  // ← ❌ INFINITE LOOP!
         {
             SpawnTree();
+            treeCount++;
         }
         
-        Debug.Log("Spawned " + maxTrees + " trees");
-    }
-    
-    void SpawnTree()
-    {
-        Vector3 position = new Vector3(
-            Random.Range(-45f, 45f),
-            0,
-            Random.Range(-45f, 45f)
-        );
+        // ════════════════════════════════════════
+        // ✅ Change "true" to: treeCount < 50
+        // ════════════════════════════════════════
         
-        // Create tree at position
-        Instantiate(treePrefab, position, Quaternion.identity);
+        Debug.Log($"Spawned {treeCount} trees");
     }
 }`,
 
+            MemoryDemo: `// ════════════════════════════════════════════
+// ORBRYA SCENARIO: Memory Management
+// ════════════════════════════════════════════
+//
+// Learn how object count affects RAM usage
+// ════════════════════════════════════════════
 
-            PerformanceDemo: `// PerformanceDemo.cs - Learn optimization
-// Watch how changes affect the FPS counter
+using Orbrya.Engine;
 
-using UnityEngine;
-
-public class PerformanceDemo : MonoBehaviour
+public class MemoryDemo : ScenarioBase
 {
-    // Control scene complexity
     public int objectCount = 100;
-    public bool useInstancing = true;
-    
-    void Update()
+
+    public void CreateObjects()
     {
-        // Check if we should optimize
-        if (useInstancing)
+        // Try different values:
+        // 50  = Low memory usage
+        // 200 = Medium memory usage  
+        // 500 = High memory usage
+        
+        while (treeCount < objectCount)
         {
-            // Good: GPU instancing reduces draw calls
-            RenderWithInstancing();
-        }
-        else
-        {
-            // Bad: Many individual draw calls
-            RenderIndividually();
-        }
-    }
-    
-    void RenderWithInstancing()
-    {
-        // Single draw call for all instances
-        Graphics.DrawMeshInstanced(mesh, 0, material, matrices);
-    }
-    
-    void RenderIndividually()
-    {
-        // WARNING: This causes many draw calls!
-        foreach (var obj in objects)
-        {
-            Graphics.DrawMesh(mesh, obj.transform.position);
+            SpawnTree();
+            treeCount++;
         }
     }
 }`
         };
 
-        this.currentScript = scripts[name] || '';
+        this.currentScript = scripts[name] || scripts.TreeSpawner;
         this.codeArea.textContent = this.currentScript;
         this.highlightSyntax();
         this.updateLineNumbers();
-        this.log('info', `Loaded ${name}.cs`);
+        this.log('info', `📂 Loaded ${name}.cs`);
     }
 
+    // ========== EXECUTION METHODS ==========
+
+    runCode() {
+        const code = this.codeArea.textContent;
+        this.log('info', '▶ Running code...');
+        
+        const result = this.executor.execute(code);
+        
+        // Result handled by callbacks
+        return result;
+    }
+
+    validateCode() {
+        const code = this.codeArea.textContent;
+        const result = this.executor.validate(code);
+        
+        if (result.valid) {
+            this.log('success', `✓ Valid! Will spawn ${result.limit} trees`);
+            result.warnings.forEach(w => this.log('warning', w));
+        } else {
+            result.errors.forEach(e => this.log('error', e));
+        }
+        
+        return result;
+    }
+
+    undoCode() {
+        const result = this.executor.undo();
+        if (result.success) {
+            this.log('info', `↩ Reverted to ${result.treeCount} trees`);
+        } else {
+            this.log('warning', result.message || 'Nothing to undo');
+        }
+    }
+
+    onExecuteSuccess(result) {
+        this.log('success', `✅ Spawned ${result.treeCount} trees`);
+        
+        if (result.warnings.length > 0) {
+            result.warnings.forEach(w => this.log('warning', w));
+        }
+        
+        // Show FPS change after delay
+        setTimeout(() => {
+            const fps = this.profiler?.metrics?.fps;
+            if (fps !== null) {
+                const emoji = fps >= 45 ? '🟢' : fps >= 30 ? '🟡' : '🔴';
+                this.log('info', `${emoji} Current FPS: ${fps}`);
+            }
+        }, 1500);
+    }
+
+    onExecuteError(result) {
+        result.errors.forEach(e => this.log('error', e));
+    }
+
+    // ========== CONSOLE OUTPUT ==========
+
+    log(type, message) {
+        const line = document.createElement('div');
+        line.className = `console-line ${type}`;
+        line.textContent = message;
+        this.consoleOutput.appendChild(line);
+        this.consoleOutput.scrollTop = this.consoleOutput.scrollHeight;
+        
+        // Limit console lines
+        while (this.consoleOutput.children.length > 50) {
+            this.consoleOutput.removeChild(this.consoleOutput.firstChild);
+        }
+    }
+
+    clearConsole() {
+        this.consoleOutput.innerHTML = '<div class="console-line info">Console cleared</div>';
+    }
+
+    // ========== EDITOR FUNCTIONALITY ==========
 
     onCodeChange() {
-        // Debounce for N4000 performance
         clearTimeout(this.parseTimeout);
         this.parseTimeout = setTimeout(() => {
             this.highlightSyntax();
             this.updateLineNumbers();
-            this.parseCode();
         }, this.parseDelay);
     }
 
     handleKeyDown(e) {
-        // Tab handling
         if (e.key === 'Tab') {
             e.preventDefault();
             document.execCommand('insertText', false, '    ');
+        }
+        // Ctrl+Enter to run
+        if (e.key === 'Enter' && e.ctrlKey) {
+            e.preventDefault();
+            this.runCode();
         }
     }
 
@@ -228,116 +302,58 @@ public class PerformanceDemo : MonoBehaviour
     highlightSyntax() {
         let code = this.codeArea.textContent;
         
-        // Store cursor position
+        // Save cursor
         const selection = window.getSelection();
-        const range = selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
-        const cursorOffset = range ? this.getCaretOffset(this.codeArea) : 0;
-
+        let cursorOffset = 0;
+        if (selection.rangeCount > 0) {
+            const range = selection.getRangeAt(0);
+            const preCaretRange = range.cloneRange();
+            preCaretRange.selectNodeContents(this.codeArea);
+            preCaretRange.setEnd(range.endContainer, range.endOffset);
+            cursorOffset = preCaretRange.toString().length;
+        }
 
         // Escape HTML
         code = code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
         
-        // Highlight comments
+        // Highlight
         code = code.replace(/(\/\/.*$)/gm, '<span class="comment">$1</span>');
-        
-        // Highlight strings
         code = code.replace(/(".*?")/g, '<span class="string">$1</span>');
-        
-        // Highlight numbers
         code = code.replace(/\b(\d+\.?\d*f?)\b/g, '<span class="number">$1</span>');
         
-        // Highlight keywords
-        const keywordPattern = new RegExp(`\\b(${this.keywords.join('|')})\\b`, 'g');
-        code = code.replace(keywordPattern, '<span class="keyword">$1</span>');
+        const kwPattern = new RegExp(`\\b(${this.keywords.join('|')})\\b`, 'g');
+        code = code.replace(kwPattern, '<span class="keyword">$1</span>');
         
-        // Highlight types
         const typePattern = new RegExp(`\\b(${this.types.join('|')})\\b`, 'g');
         code = code.replace(typePattern, '<span class="type">$1</span>');
         
-        // Update content
+        // Apply
         this.codeArea.innerHTML = code;
         
         // Restore cursor
-        if (range && this.codeArea.childNodes.length > 0) {
-            this.setCaretOffset(this.codeArea, cursorOffset);
-        }
+        this.restoreCursor(cursorOffset);
     }
 
-    getCaretOffset(element) {
-        const selection = window.getSelection();
-        if (selection.rangeCount === 0) return 0;
-        
-        const range = selection.getRangeAt(0).cloneRange();
-        range.selectNodeContents(element);
-        range.setEnd(selection.getRangeAt(0).endContainer, selection.getRangeAt(0).endOffset);
-        return range.toString().length;
-    }
-
-
-    setCaretOffset(element, offset) {
+    restoreCursor(offset) {
         const selection = window.getSelection();
         const range = document.createRange();
         
         let currentOffset = 0;
-        const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+        const walker = document.createTreeWalker(this.codeArea, NodeFilter.SHOW_TEXT);
         
         while (walker.nextNode()) {
             const node = walker.currentNode;
-            if (currentOffset + node.length >= offset) {
+            const len = node.length;
+            
+            if (currentOffset + len >= offset) {
                 range.setStart(node, offset - currentOffset);
                 range.collapse(true);
                 selection.removeAllRanges();
                 selection.addRange(range);
                 return;
             }
-            currentOffset += node.length;
+            currentOffset += len;
         }
-    }
-
-    parseCode() {
-        const code = this.codeArea.textContent;
-        this.errors = [];
-        
-        // Parse maxTrees value and apply to scene
-        const treeMatch = code.match(/maxTrees\s*=\s*(\d+)/);
-        if (treeMatch) {
-            const count = parseInt(treeMatch[1]);
-            if (this.sceneController) {
-                this.sceneController.spawnTrees(Math.min(count, 705));
-                this.log('success', `Applied: maxTrees = ${count}`);
-                
-                if (count > 175) {
-                    this.log('warning', `⚠️ High tree count may impact FPS`);
-                }
-            }
-        }
-    }
-
-
-    runCode() {
-        this.log('info', 'Compiling...');
-        
-        setTimeout(() => {
-            this.parseCode();
-            this.log('success', '✓ Code executed successfully');
-        }, 300);
-    }
-
-    log(type, message) {
-        const line = document.createElement('div');
-        line.className = `console-line ${type}`;
-        line.textContent = message;
-        this.consoleOutput.appendChild(line);
-        this.consoleOutput.scrollTop = this.consoleOutput.scrollHeight;
-        
-        // Keep max 50 lines
-        while (this.consoleOutput.children.length > 50) {
-            this.consoleOutput.removeChild(this.consoleOutput.firstChild);
-        }
-    }
-
-    clearConsole() {
-        this.consoleOutput.innerHTML = '<div class="console-line info">[Console] Cleared</div>';
     }
 
     getCode() {
@@ -350,4 +366,3 @@ public class PerformanceDemo : MonoBehaviour
         this.updateLineNumbers();
     }
 }
-

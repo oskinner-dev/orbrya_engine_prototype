@@ -62,8 +62,9 @@ class OrbryaEngine {
         
         this.updateLoadingStatus('Loading code editor...');
         
-        // Create code editor
-        this.codeEditor = new CodeEditor(this.panelManager, this.sceneController);
+        // Create code editor with executor integration
+        this.codeEditor = new CodeEditor(this.panelManager, this.sceneController, this.profiler);
+        this.codeEditor.init();
         this.codeEditor.createPanel();
         
         this.updateLoadingStatus('Building hierarchy...');

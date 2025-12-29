@@ -448,6 +448,37 @@ html, body {
     transform: translateY(-1px);
 }
 
+/* Editor toolbar buttons */
+.editor-toolbar .editor-btn {
+    background: var(--bg-panel);
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.editor-toolbar .editor-btn:hover {
+    background: var(--bg-input);
+    color: var(--text-primary);
+    border-color: var(--accent-primary);
+}
+
+.editor-toolbar .editor-btn.run-btn {
+    background: var(--success);
+    border-color: var(--success);
+    color: var(--bg-darkest);
+    font-weight: 600;
+    padding: 5px 14px;
+}
+
+.editor-toolbar .editor-btn.run-btn:hover {
+    background: #00e67a;
+    border-color: #00e67a;
+}
+
 
 /* Code editor area */
 .code-editor-wrapper {
