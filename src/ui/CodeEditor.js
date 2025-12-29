@@ -62,8 +62,9 @@ export class CodeEditor {
     createPanel() {
         const content = document.createElement('div');
         content.className = 'code-editor-wrapper';
+        content.style.cssText = 'display:flex; flex-direction:column; height:100%; overflow:hidden;';
         content.innerHTML = `
-            <div class="editor-toolbar">
+            <div class="editor-toolbar" style="flex-shrink:0; position:sticky; top:0; z-index:10;">
                 <select id="script-selector">
                     <option value="TreeSpawner">🌲 TreeSpawner.cs</option>
                     <option value="MemoryDemo">💾 MemoryDemo.cs</option>
@@ -72,11 +73,11 @@ export class CodeEditor {
                 <button class="editor-btn run-btn" id="run-code-btn" title="Run Code">▶ Run</button>
                 <button class="editor-btn" id="undo-btn" title="Undo">↩</button>
             </div>
-            <div class="code-editor">
+            <div class="code-editor" style="flex:1; overflow:hidden; min-height:0;">
                 <div class="line-numbers" id="line-numbers"></div>
                 <div class="code-area" id="code-area" contenteditable="true" spellcheck="false"></div>
             </div>
-            <div class="console-output" id="console-output">
+            <div class="console-output" id="console-output" style="flex-shrink:0;">
                 <div class="console-line info">📝 Ready - Edit the code and click Run</div>
             </div>
         `;
@@ -94,6 +95,12 @@ export class CodeEditor {
             minHeight: 300,
             content
         });
+
+        // Fix panel-content scrolling issue
+        const panelContent = this.panel.querySelector('.panel-content');
+        if (panelContent) {
+            panelContent.style.cssText = 'overflow:hidden; padding:0; display:flex; flex-direction:column;';
+        }
 
         // Cache elements
         this.codeArea = document.getElementById('code-area');
