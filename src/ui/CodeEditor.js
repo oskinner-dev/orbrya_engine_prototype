@@ -104,7 +104,7 @@ export class CodeEditor {
         this.codeArea.addEventListener('input', () => this.onCodeChange());
         this.codeArea.addEventListener('scroll', () => this.syncScroll());
         this.codeArea.addEventListener('keydown', (e) => this.handleKeyDown(e));
-        this.codeArea.addEventListener('blur', () => this.highlightSyntax());
+        // Syntax highlighting disabled - was causing corruption
         
         document.getElementById('run-code-btn').addEventListener('click', () => this.runCode());
         document.getElementById('validate-btn').addEventListener('click', () => this.validateCode());
@@ -188,7 +188,6 @@ public class MemoryDemo : ScenarioBase
 
         this.currentScript = scripts[name] || scripts.TreeSpawner;
         this.codeArea.textContent = this.currentScript;
-        this.highlightSyntax();
         this.updateLineNumbers();
         this.log('info', `📂 Loaded ${name}.cs`);
     }
@@ -302,38 +301,10 @@ public class MemoryDemo : ScenarioBase
     }
 
     highlightSyntax() {
-        let code = this.codeArea.textContent;
-        
-        // Save cursor
-        const selection = window.getSelection();
-        let cursorOffset = 0;
-        if (selection.rangeCount > 0) {
-            const range = selection.getRangeAt(0);
-            const preCaretRange = range.cloneRange();
-            preCaretRange.selectNodeContents(this.codeArea);
-            preCaretRange.setEnd(range.endContainer, range.endOffset);
-            cursorOffset = preCaretRange.toString().length;
-        }
-
-        // Escape HTML
-        code = code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-        
-        // Highlight
-        code = code.replace(/(\/\/.*$)/gm, '<span class="comment">$1</span>');
-        code = code.replace(/(".*?")/g, '<span class="string">$1</span>');
-        code = code.replace(/\b(\d+\.?\d*f?)\b/g, '<span class="number">$1</span>');
-        
-        const kwPattern = new RegExp(`\\b(${this.keywords.join('|')})\\b`, 'g');
-        code = code.replace(kwPattern, '<span class="keyword">$1</span>');
-        
-        const typePattern = new RegExp(`\\b(${this.types.join('|')})\\b`, 'g');
-        code = code.replace(typePattern, '<span class="type">$1</span>');
-        
-        // Apply
-        this.codeArea.innerHTML = code;
-        
-        // Restore cursor
-        this.restoreCursor(cursorOffset);
+        // DISABLED - was causing recursive corruption
+        // TODO: Fix syntax highlighting properly
+        // For now, just ensure plain text display
+        return;
     }
 
     restoreCursor(offset) {
