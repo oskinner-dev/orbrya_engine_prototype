@@ -97,10 +97,10 @@ export class CodeEditor {
             content
         });
 
-        // Fix panel-content scrolling issue
+        // Ensure panel-content is set up for absolute positioning
         const panelContent = this.panel.querySelector('.panel-content');
         if (panelContent) {
-            panelContent.style.cssText = 'overflow:hidden; padding:0; display:flex; flex-direction:column;';
+            panelContent.style.cssText = 'overflow:hidden; padding:0; position:relative; height:100%;';
         }
 
         // Cache elements

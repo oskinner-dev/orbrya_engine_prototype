@@ -222,8 +222,8 @@ html, body {
 #code-editor-panel .panel-content {
     padding: 0 !important;
     overflow: hidden !important;
-    display: flex !important;
-    flex-direction: column !important;
+    height: 100% !important;
+    position: relative !important;
 }
 
 #code-editor-panel .code-editor-wrapper {
