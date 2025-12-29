@@ -220,8 +220,37 @@ html, body {
 
 /* Code editor panel needs special handling - no padding, no scroll on content */
 #code-editor-panel .panel-content {
-    padding: 0;
-    overflow: hidden;
+    padding: 0 !important;
+    overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
+}
+
+#code-editor-panel .code-editor-wrapper {
+    display: flex !important;
+    flex-direction: column !important;
+    flex: 1 !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+}
+
+#code-editor-panel .editor-toolbar {
+    flex-shrink: 0 !important;
+    z-index: 100 !important;
+}
+
+#code-editor-panel .code-editor {
+    flex: 1 !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+}
+
+#code-editor-panel .code-area {
+    overflow: auto !important;
+}
+
+#code-editor-panel .console-output {
+    flex-shrink: 0 !important;
 }
 
 .panel-content::-webkit-scrollbar {
