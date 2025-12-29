@@ -62,9 +62,10 @@ export class CodeEditor {
     createPanel() {
         const content = document.createElement('div');
         content.className = 'code-editor-wrapper';
-        content.style.cssText = 'display:flex; flex-direction:column; height:100%; overflow:hidden;';
+        // Use absolute positioning for bulletproof layout
+        content.style.cssText = 'position:relative; height:100%;';
         content.innerHTML = `
-            <div class="editor-toolbar" style="flex-shrink:0; position:sticky; top:0; z-index:10;">
+            <div class="editor-toolbar" style="position:absolute; top:0; left:0; right:0; height:36px; z-index:100; background:#0f1629; border-bottom:1px solid #2d3748;">
                 <select id="script-selector">
                     <option value="TreeSpawner">🌲 TreeSpawner.cs</option>
                     <option value="MemoryDemo">💾 MemoryDemo.cs</option>
@@ -73,11 +74,11 @@ export class CodeEditor {
                 <button class="editor-btn run-btn" id="run-code-btn" title="Run Code">▶ Run</button>
                 <button class="editor-btn" id="undo-btn" title="Undo">↩</button>
             </div>
-            <div class="code-editor" style="flex:1; display:flex; min-height:0;">
+            <div class="code-editor" style="position:absolute; top:36px; left:0; right:0; bottom:100px; display:flex;">
                 <div class="line-numbers" id="line-numbers" style="overflow-y:auto;"></div>
                 <div class="code-area" id="code-area" contenteditable="true" spellcheck="false" style="flex:1; overflow:auto;"></div>
             </div>
-            <div class="console-output" id="console-output" style="flex-shrink:0;">
+            <div class="console-output" id="console-output" style="position:absolute; bottom:0; left:0; right:0; height:100px;">
                 <div class="console-line info">📝 Ready - Edit the code and click Run</div>
             </div>
         `;
