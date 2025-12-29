@@ -101,6 +101,7 @@ export class CodeEditor {
         this.codeArea.addEventListener('input', () => this.onCodeChange());
         this.codeArea.addEventListener('scroll', () => this.syncScroll());
         this.codeArea.addEventListener('keydown', (e) => this.handleKeyDown(e));
+        this.codeArea.addEventListener('blur', () => this.highlightSyntax());
         
         document.getElementById('run-code-btn').addEventListener('click', () => this.runCode());
         document.getElementById('validate-btn').addEventListener('click', () => this.validateCode());
@@ -267,11 +268,8 @@ public class MemoryDemo : ScenarioBase
     // ========== EDITOR FUNCTIONALITY ==========
 
     onCodeChange() {
-        clearTimeout(this.parseTimeout);
-        this.parseTimeout = setTimeout(() => {
-            this.highlightSyntax();
-            this.updateLineNumbers();
-        }, this.parseDelay);
+        // Only update line numbers while typing - highlighting on blur
+        this.updateLineNumbers();
     }
 
     handleKeyDown(e) {
