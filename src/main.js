@@ -72,16 +72,9 @@ class OrbryaEngine {
         this.hierarchy = new Hierarchy(this.panelManager, this.sceneController);
         this.hierarchy.createPanel();
         
-        // Optional: Load 3D assets (can be skipped for faster startup)
-        this.updateLoadingStatus('Loading 3D assets (may take 15-30s on slow wifi)...');
-        try {
-            await this.sceneController.loadAssets((progress) => {
-                this.updateLoadingStatus(`Loading assets: ${progress.percent}% - ${progress.name || ''}`);
-                this.updateLoadingProgress(progress.percent);
-            });
-        } catch (e) {
-            console.log('[Main] Using procedural assets (load failed or skipped)');
-        }
+        // Skip asset loading for now - use procedural geometry
+        // Assets would need to be deployed with the site
+        console.log('[Main] Using procedural assets (faster startup)');
         
         // Start render loop
         this.sceneController.start();
@@ -94,8 +87,8 @@ class OrbryaEngine {
         // Setup global keyboard shortcuts
         this.setupKeyboardShortcuts();
         
-        // Initialize profiling test suite
-        this.testSuite = new ProfilingTestSuite(this.sceneController, this.profiler);
+        // Test suite disabled by default - enable with window.orbrya.enableTestSuite()
+        this.testSuite = null;
         
         console.log('[Main] Orbrya Engine initialized successfully');
         

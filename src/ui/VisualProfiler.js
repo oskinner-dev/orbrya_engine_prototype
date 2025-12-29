@@ -1,21 +1,15 @@
 /**
- * VisualProfiler.js - CORE PEDAGOGICAL TOOL
+ * VisualProfiler.js - CORE PEDAGOGICAL TOOL (N4000 OPTIMIZED)
  * 
- * Makes invisible performance concepts visually tangible for students:
- * - FPS (frames per second) - smoothness
- * - RAM usage (memory) - resource consumption  
- * - Draw Calls - GPU workload
+ * Makes invisible performance concepts visually tangible for students.
+ * HEAVILY OPTIMIZED to avoid causing the very lag we're measuring.
  * 
- * DESIGN PRINCIPLES:
- * - Profiler itself uses <1% CPU (100ms update interval)
- * - requestIdleCallback for non-critical updates
- * - Color-coded health bars for instant understanding
- * - Glassmorphism UI (frosted glass effect)
- * 
- * THRESHOLDS:
- * GREEN:  FPS > 45, RAM < 300MB, Draw Calls < 50
- * YELLOW: FPS 30-45, RAM 300-350MB, Draw Calls 50-80
- * RED:    FPS < 30, RAM > 350MB, Draw Calls > 80
+ * OPTIMIZATIONS:
+ * - 500ms update interval (not 100ms)
+ * - Circular buffer for history (no array shift)
+ * - Cached DOM references
+ * - Skip unchanged values
+ * - Graph updates every 2nd cycle
  */
 
 export class VisualProfiler {
@@ -23,126 +17,65 @@ export class VisualProfiler {
         this.renderer = renderer;
         this.panelManager = null;
         this.panel = null;
-        this.container = null;
         this.visible = true;
         
-        // Thresholds (matching spec)
+        // Thresholds
         this.thresholds = {
             fps: { green: 45, yellow: 30 },
-            memory: { green: 300, yellow: 350 },  // MB
+            memory: { green: 300, yellow: 350 },
             drawCalls: { green: 50, yellow: 80 }
         };
         
-        // Current metrics
+        // Metrics
         this.metrics = {
-            fps: 60,
-            frameTime: 16.67,
-            memory: 0,
-            memoryLimit: 400,
-            drawCalls: 0,
-            triangles: 0,
-            textures: 0,
-            geometries: 0
+            fps: 60, frameTime: 16.67,
+            memory: 0, drawCalls: 0,
+            triangles: 0, geometries: 0
         };
         
-        // FPS calculation
+        // Circular buffer for FPS history (no shift = no GC)
+        this.fpsHistory = new Array(60).fill(60);
+        this.historyIndex = 0;
+        
+        // Frame counting
         this.frameCount = 0;
         this.lastFpsTime = performance.now();
-        this.fpsHistory = new Array(60).fill(60);
         
-        // Update intervals (100ms for metrics, less frequent for UI)
+        // Update control
         this.updateInterval = null;
-        this.lastUIUpdate = 0;
-        this.uiUpdateInterval = 100; // ms
+        this.graphUpdateCounter = 0;
         
-        // DOM element cache
+        // Cached previous values (skip unchanged updates)
+        this.prevValues = {};
+        
+        // DOM cache
         this.elements = {};
-        
-        // Graph
         this.graphCanvas = null;
         this.graphCtx = null;
     }
 
-    /**
-     * Initialize with panel manager (optional)
-     */
     init(panelManager = null) {
         this.panelManager = panelManager;
-        
         if (panelManager) {
             this.createPanel();
-        } else {
-            this.createStandaloneUI();
         }
-        
-        // Start automatic updates (100ms interval)
         this.startUpdates();
-        
         return this;
     }
 
-    /**
-     * Create panel-based UI
-     */
     createPanel() {
         const content = document.createElement('div');
         content.className = 'profiler-content';
-        content.innerHTML = this.getHTMLTemplate();
-
-        const saved = this.panelManager.getSavedState('profiler-panel');
-        this.panel = this.panelManager.createPanel({
-            id: 'profiler-panel',
-            title: 'Performance',
-            icon: '📊',
-            x: saved?.x ?? window.innerWidth - 280,
-            y: saved?.y ?? 50,
-            width: saved?.width ?? 260,
-            height: saved?.height ?? 480,
-            minWidth: 220,
-            minHeight: 300,
-            content
-        });
-
-        this.cacheElements();
-        this.setupGraph();
-        this.panel.addEventListener('panelresize', () => this.resizeGraph());
-        
-        return this.panel;
-    }
-
-    /**
-     * Create standalone overlay UI (no panel manager)
-     */
-    createStandaloneUI() {
-        this.container = document.createElement('div');
-        this.container.id = 'profiler-overlay';
-        this.container.className = 'profiler-overlay';
-        this.container.innerHTML = this.getHTMLTemplate();
-        document.body.appendChild(this.container);
-        
-        this.cacheElements();
-        this.setupGraph();
-    }
-
-    /**
-     * HTML template for the profiler UI
-     */
-    getHTMLTemplate() {
-        return `
-            <!-- Main FPS Display -->
+        content.innerHTML = `
             <div class="profiler-fps-display">
-                <div class="fps-ring" id="fps-ring">
+                <div class="fps-ring healthy" id="fps-ring">
                     <div class="fps-value" id="prof-fps">60</div>
                     <div class="fps-unit">FPS</div>
                 </div>
-                <div class="fps-status" id="fps-status">✅ Excellent</div>
+                <div class="fps-status healthy" id="fps-status">✅ Excellent</div>
             </div>
-
-            <!-- Health Bars Section -->
             <div class="profiler-section">
                 <div class="profiler-section-title">System Health</div>
-                
-                <!-- FPS Bar -->
                 <div class="health-bar-row">
                     <div class="health-bar-icon">⚡</div>
                     <div class="health-bar-content">
@@ -151,12 +84,10 @@ export class VisualProfiler {
                             <span class="health-bar-value" id="prof-fps-val">60</span>
                         </div>
                         <div class="health-bar-track">
-                            <div class="health-bar-fill" id="prof-fps-bar"></div>
+                            <div class="health-bar-fill healthy" id="prof-fps-bar" style="width:100%"></div>
                         </div>
                     </div>
                 </div>
-
-                <!-- RAM Bar -->
                 <div class="health-bar-row">
                     <div class="health-bar-icon">💾</div>
                     <div class="health-bar-content">
@@ -165,12 +96,10 @@ export class VisualProfiler {
                             <span class="health-bar-value" id="prof-mem-val">0 MB</span>
                         </div>
                         <div class="health-bar-track">
-                            <div class="health-bar-fill" id="prof-mem-bar"></div>
+                            <div class="health-bar-fill healthy" id="prof-mem-bar" style="width:0%"></div>
                         </div>
                     </div>
                 </div>
-
-                <!-- Draw Calls Bar -->
                 <div class="health-bar-row">
                     <div class="health-bar-icon">🎨</div>
                     <div class="health-bar-content">
@@ -179,48 +108,35 @@ export class VisualProfiler {
                             <span class="health-bar-value" id="prof-dc-val">0</span>
                         </div>
                         <div class="health-bar-track">
-                            <div class="health-bar-fill" id="prof-dc-bar"></div>
+                            <div class="health-bar-fill healthy" id="prof-dc-bar" style="width:0%"></div>
                         </div>
                     </div>
                 </div>
             </div>
-
-            <!-- Performance Graph -->
             <div class="profiler-section">
                 <div class="profiler-section-title">FPS History</div>
-                <div class="profiler-graph">
-                    <canvas id="profiler-graph-canvas"></canvas>
-                    <div class="graph-labels">
-                        <span class="graph-label-max">60</span>
-                        <span class="graph-label-mid">30</span>
-                        <span class="graph-label-min">0</span>
-                    </div>
-                </div>
+                <div class="profiler-graph"><canvas id="profiler-graph-canvas"></canvas></div>
             </div>
-
-            <!-- Detailed Stats -->
             <div class="profiler-section">
-                <div class="profiler-section-title">Render Stats</div>
+                <div class="profiler-section-title">Stats</div>
                 <div class="profiler-stats-grid">
-                    <div class="profiler-stat">
-                        <span class="stat-value" id="prof-triangles">0</span>
-                        <span class="stat-label">Triangles</span>
-                    </div>
-                    <div class="profiler-stat">
-                        <span class="stat-value" id="prof-textures">0</span>
-                        <span class="stat-label">Textures</span>
-                    </div>
-                    <div class="profiler-stat">
-                        <span class="stat-value" id="prof-geometries">0</span>
-                        <span class="stat-label">Geometries</span>
-                    </div>
-                    <div class="profiler-stat">
-                        <span class="stat-value" id="prof-frametime">16.7ms</span>
-                        <span class="stat-label">Frame Time</span>
-                    </div>
+                    <div class="profiler-stat"><span class="stat-value" id="prof-triangles">0</span><span class="stat-label">Tris</span></div>
+                    <div class="profiler-stat"><span class="stat-value" id="prof-geometries">0</span><span class="stat-label">Geo</span></div>
                 </div>
             </div>
         `;
+
+        const saved = this.panelManager?.getSavedState('profiler-panel');
+        this.panel = this.panelManager.createPanel({
+            id: 'profiler-panel', title: 'Performance', icon: '📊',
+            x: saved?.x ?? window.innerWidth - 280, y: saved?.y ?? 50,
+            width: saved?.width ?? 260, height: saved?.height ?? 420,
+            minWidth: 220, minHeight: 300, content
+        });
+
+        this.cacheElements();
+        this.setupGraph();
+        return this.panel;
     }
 
     cacheElements() {
@@ -235,9 +151,7 @@ export class VisualProfiler {
             dcVal: document.getElementById('prof-dc-val'),
             dcBar: document.getElementById('prof-dc-bar'),
             triangles: document.getElementById('prof-triangles'),
-            textures: document.getElementById('prof-textures'),
-            geometries: document.getElementById('prof-geometries'),
-            frametime: document.getElementById('prof-frametime')
+            geometries: document.getElementById('prof-geometries')
         };
     }
 
@@ -250,29 +164,20 @@ export class VisualProfiler {
     }
 
     resizeGraph() {
-        if (!this.graphCanvas) return;
-        const parent = this.graphCanvas.parentElement;
-        if (!parent) return;
-        const rect = parent.getBoundingClientRect();
-        this.graphCanvas.width = rect.width - 40;
-        this.graphCanvas.height = rect.height;
+        if (!this.graphCanvas?.parentElement) return;
+        const rect = this.graphCanvas.parentElement.getBoundingClientRect();
+        this.graphCanvas.width = Math.max(100, rect.width - 20);
+        this.graphCanvas.height = Math.max(40, rect.height - 10);
     }
 
-    setRenderer(renderer) {
-        this.renderer = renderer;
-    }
+    setRenderer(renderer) { this.renderer = renderer; }
 
-    /**
-     * Start automatic metric updates (100ms interval)
-     */
     startUpdates() {
         if (this.updateInterval) return;
-        this.updateInterval = setInterval(() => this.sampleMetrics(), 100);
+        // 500ms interval - much lighter on N4000
+        this.updateInterval = setInterval(() => this.sampleMetrics(), 500);
     }
 
-    /**
-     * Stop automatic updates
-     */
     stopUpdates() {
         if (this.updateInterval) {
             clearInterval(this.updateInterval);
@@ -280,261 +185,153 @@ export class VisualProfiler {
         }
     }
 
-    /**
-     * Sample metrics (called every 100ms by interval)
-     * Uses requestIdleCallback for non-critical updates
-     */
+    // Called each frame - MUST be ultra lightweight
+    update() {
+        this.frameCount++;
+    }
+
     sampleMetrics() {
         const now = performance.now();
-        
-        // Calculate FPS from frame count
         const elapsed = now - this.lastFpsTime;
-        if (elapsed >= 100) {
+        
+        // Calculate FPS
+        if (elapsed > 0) {
             this.metrics.fps = Math.round((this.frameCount / elapsed) * 1000);
             this.frameCount = 0;
             this.lastFpsTime = now;
             
-            // Update history
-            this.fpsHistory.shift();
-            this.fpsHistory.push(this.metrics.fps);
+            // Circular buffer update (no GC pressure)
+            this.fpsHistory[this.historyIndex] = this.metrics.fps;
+            this.historyIndex = (this.historyIndex + 1) % 60;
         }
         
-        // Sample renderer info
-        if (this.renderer) {
+        // Sample renderer (lightweight)
+        if (this.renderer?.info) {
             const info = this.renderer.info;
             this.metrics.drawCalls = info.render?.calls || 0;
             this.metrics.triangles = info.render?.triangles || 0;
-            this.metrics.textures = info.memory?.textures || 0;
             this.metrics.geometries = info.memory?.geometries || 0;
         }
         
-        // Sample memory (throttled - expensive on some browsers)
+        // Memory (Chrome only)
         if (performance.memory) {
             this.metrics.memory = Math.round(performance.memory.usedJSHeapSize / 1048576);
-            this.metrics.memoryLimit = Math.round(performance.memory.jsHeapSizeLimit / 1048576);
         }
         
-        // Update UI using requestIdleCallback if available
-        if (typeof requestIdleCallback === 'function') {
-            requestIdleCallback(() => this.updateUI(), { timeout: 50 });
-        } else {
-            this.updateUI();
-        }
+        this.updateUI();
     }
 
-    /**
-     * Called each frame to count frames (lightweight)
-     */
-    update() {
-        this.frameCount++;
-        this.metrics.frameTime = performance.now() - (this.lastFrameTimestamp || performance.now());
-        this.lastFrameTimestamp = performance.now();
-    }
-
-    /**
-     * Update the UI elements
-     */
     updateUI() {
         if (!this.elements.fps) return;
+        const { fps, memory, drawCalls, triangles, geometries } = this.metrics;
         
-        const { fps, memory, drawCalls, triangles, textures, geometries, frameTime } = this.metrics;
+        // Only update changed values
+        if (this.prevValues.fps !== fps) {
+            this.elements.fps.textContent = fps;
+            this.elements.fpsVal.textContent = fps;
+            const h = this.getHealth('fps', fps);
+            this.elements.fpsRing.className = `fps-ring ${h.c}`;
+            this.elements.fpsStatus.textContent = `${h.i} ${h.l}`;
+            this.elements.fpsBar.style.width = `${Math.min(100, (fps/60)*100)}%`;
+            this.elements.fpsBar.className = `health-bar-fill ${h.c}`;
+            this.prevValues.fps = fps;
+        }
         
-        // FPS display
-        this.elements.fps.textContent = fps;
-        this.elements.fpsVal.textContent = fps;
+        if (this.prevValues.memory !== memory) {
+            const h = this.getHealth('memory', memory);
+            this.elements.memVal.textContent = `${memory} MB`;
+            this.elements.memBar.style.width = `${Math.min(100, (memory/400)*100)}%`;
+            this.elements.memBar.className = `health-bar-fill ${h.c}`;
+            this.prevValues.memory = memory;
+        }
         
-        // FPS health status
-        const fpsHealth = this.getHealthStatus('fps', fps);
-        this.elements.fpsRing.className = `fps-ring ${fpsHealth.class}`;
-        this.elements.fpsStatus.textContent = `${fpsHealth.icon} ${fpsHealth.label}`;
-        this.elements.fpsStatus.className = `fps-status ${fpsHealth.class}`;
+        if (this.prevValues.dc !== drawCalls) {
+            const h = this.getHealth('drawCalls', drawCalls);
+            this.elements.dcVal.textContent = drawCalls;
+            this.elements.dcBar.style.width = `${Math.min(100, (drawCalls/100)*100)}%`;
+            this.elements.dcBar.className = `health-bar-fill ${h.c}`;
+            this.prevValues.dc = drawCalls;
+        }
         
-        // FPS bar (inverted - higher is better)
-        const fpsPercent = Math.min(100, (fps / 60) * 100);
-        this.elements.fpsBar.style.width = `${fpsPercent}%`;
-        this.elements.fpsBar.className = `health-bar-fill ${fpsHealth.class}`;
-        
-        // Memory bar
-        const memHealth = this.getHealthStatus('memory', memory);
-        const memPercent = Math.min(100, (memory / 400) * 100);
-        this.elements.memVal.textContent = `${memory} MB`;
-        this.elements.memBar.style.width = `${memPercent}%`;
-        this.elements.memBar.className = `health-bar-fill ${memHealth.class}`;
-        
-        // Draw calls bar
-        const dcHealth = this.getHealthStatus('drawCalls', drawCalls);
-        const dcPercent = Math.min(100, (drawCalls / 100) * 100);
-        this.elements.dcVal.textContent = drawCalls;
-        this.elements.dcBar.style.width = `${dcPercent}%`;
-        this.elements.dcBar.className = `health-bar-fill ${dcHealth.class}`;
-        
-        // Stats
-        this.elements.triangles.textContent = this.formatNumber(triangles);
-        this.elements.textures.textContent = textures;
+        this.elements.triangles.textContent = triangles > 1000 ? `${(triangles/1000).toFixed(1)}K` : triangles;
         this.elements.geometries.textContent = geometries;
-        this.elements.frametime.textContent = `${frameTime.toFixed(1)}ms`;
         
-        // Draw graph
-        this.drawGraph();
-    }
-
-    /**
-     * Get health status for a metric
-     */
-    getHealthStatus(metric, value) {
-        const t = this.thresholds[metric];
-        
-        if (metric === 'fps') {
-            // Higher is better for FPS
-            if (value >= t.green) return { class: 'healthy', icon: '✅', label: 'Excellent' };
-            if (value >= t.yellow) return { class: 'warning', icon: '⚠️', label: 'Moderate' };
-            return { class: 'critical', icon: '❌', label: 'Poor' };
-        } else {
-            // Lower is better for memory and draw calls
-            if (value < t.green) return { class: 'healthy', icon: '✅', label: 'Good' };
-            if (value < t.yellow) return { class: 'warning', icon: '⚠️', label: 'Warning' };
-            return { class: 'critical', icon: '❌', label: 'Critical' };
+        // Graph every 2nd update (1 second)
+        this.graphUpdateCounter++;
+        if (this.graphUpdateCounter >= 2) {
+            this.drawGraph();
+            this.graphUpdateCounter = 0;
         }
     }
 
-    /**
-     * Draw the FPS history graph
-     */
+    getHealth(metric, value) {
+        const t = this.thresholds[metric];
+        if (metric === 'fps') {
+            if (value >= t.green) return { c: 'healthy', i: '✅', l: 'Excellent' };
+            if (value >= t.yellow) return { c: 'warning', i: '⚠️', l: 'Moderate' };
+            return { c: 'critical', i: '❌', l: 'Poor' };
+        } else {
+            if (value < t.green) return { c: 'healthy', i: '✅', l: 'Good' };
+            if (value < t.yellow) return { c: 'warning', i: '⚠️', l: 'Warning' };
+            return { c: 'critical', i: '❌', l: 'Critical' };
+        }
+    }
+
     drawGraph() {
-        if (!this.graphCtx || !this.graphCanvas) return;
-        
+        if (!this.graphCtx) return;
         const ctx = this.graphCtx;
         const w = this.graphCanvas.width;
         const h = this.graphCanvas.height;
         
-        // Clear with dark background
         ctx.fillStyle = '#0a0a14';
         ctx.fillRect(0, 0, w, h);
         
-        // Draw threshold lines
-        ctx.setLineDash([3, 3]);
-        
-        // 45 FPS line (green threshold)
-        ctx.strokeStyle = 'rgba(0, 255, 136, 0.3)';
+        // 30 FPS line
+        ctx.strokeStyle = 'rgba(255,165,0,0.3)';
+        ctx.setLineDash([2, 2]);
+        const y30 = h - (30/70) * h;
         ctx.beginPath();
-        const y45 = h - (45 / 70) * h;
-        ctx.moveTo(0, y45);
-        ctx.lineTo(w, y45);
-        ctx.stroke();
-        
-        // 30 FPS line (yellow threshold)
-        ctx.strokeStyle = 'rgba(255, 165, 0, 0.3)';
-        ctx.beginPath();
-        const y30 = h - (30 / 70) * h;
         ctx.moveTo(0, y30);
         ctx.lineTo(w, y30);
         ctx.stroke();
-        
         ctx.setLineDash([]);
         
-        // Draw FPS line with gradient based on value
+        // FPS line (read circular buffer correctly)
+        ctx.strokeStyle = this.metrics.fps >= 45 ? '#00ff88' : this.metrics.fps >= 30 ? '#ffa500' : '#ff4757';
         ctx.lineWidth = 2;
         ctx.beginPath();
         
-        for (let i = 0; i < this.fpsHistory.length; i++) {
-            const fps = this.fpsHistory[i];
-            const x = (i / (this.fpsHistory.length - 1)) * w;
+        for (let i = 0; i < 60; i++) {
+            const idx = (this.historyIndex + i) % 60;
+            const fps = this.fpsHistory[idx];
+            const x = (i / 59) * w;
             const y = h - (Math.min(70, fps) / 70) * h;
-            
-            if (i === 0) {
-                ctx.moveTo(x, y);
-            } else {
-                ctx.lineTo(x, y);
-            }
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
         }
-        
-        // Color based on current FPS
-        const currentFps = this.fpsHistory[this.fpsHistory.length - 1];
-        if (currentFps >= 45) ctx.strokeStyle = '#00ff88';
-        else if (currentFps >= 30) ctx.strokeStyle = '#ffa500';
-        else ctx.strokeStyle = '#ff4757';
-        
         ctx.stroke();
-        
-        // Fill under the line with gradient
-        ctx.lineTo(w, h);
-        ctx.lineTo(0, h);
-        ctx.closePath();
-        
-        const gradient = ctx.createLinearGradient(0, 0, 0, h);
-        gradient.addColorStop(0, 'rgba(0, 255, 136, 0.2)');
-        gradient.addColorStop(1, 'rgba(0, 255, 136, 0)');
-        ctx.fillStyle = gradient;
-        ctx.fill();
     }
 
-    /**
-     * Show the profiler
-     */
-    show() {
-        this.visible = true;
-        if (this.panel) {
-            this.panelManager?.showPanel('profiler-panel');
-        } else if (this.container) {
-            this.container.classList.remove('hidden');
-        }
-        this.startUpdates();
-    }
-
-    /**
-     * Hide the profiler
-     */
-    hide() {
-        this.visible = false;
-        if (this.panel) {
-            this.panelManager?.minimizePanel('profiler-panel');
-        } else if (this.container) {
-            this.container.classList.add('hidden');
-        }
-        this.stopUpdates();
-    }
-
-    /**
-     * Reset all metrics
-     */
+    show() { this.visible = true; this.startUpdates(); }
+    hide() { this.visible = false; this.stopUpdates(); }
+    
     reset() {
-        this.metrics = {
-            fps: 60, frameTime: 16.67,
-            memory: 0, memoryLimit: 400,
-            drawCalls: 0, triangles: 0,
-            textures: 0, geometries: 0
-        };
-        this.fpsHistory = new Array(60).fill(60);
+        this.fpsHistory.fill(60);
+        this.historyIndex = 0;
         this.frameCount = 0;
-        this.lastFpsTime = performance.now();
-        this.updateUI();
+        this.prevValues = {};
     }
 
-    /**
-     * Get current metrics object
-     */
     getMetrics() {
         return {
             ...this.metrics,
-            fpsHistory: [...this.fpsHistory],
             health: {
-                fps: this.getHealthStatus('fps', this.metrics.fps),
-                memory: this.getHealthStatus('memory', this.metrics.memory),
-                drawCalls: this.getHealthStatus('drawCalls', this.metrics.drawCalls)
+                fps: this.getHealth('fps', this.metrics.fps),
+                memory: this.getHealth('memory', this.metrics.memory),
+                drawCalls: this.getHealth('drawCalls', this.metrics.drawCalls)
             }
         };
     }
 
-    formatNumber(num) {
-        if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
-        if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
-        return num.toString();
-    }
-
-    dispose() {
-        this.stopUpdates();
-        if (this.container) {
-            this.container.remove();
-        }
-    }
+    dispose() { this.stopUpdates(); }
 }

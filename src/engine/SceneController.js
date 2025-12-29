@@ -81,13 +81,19 @@ export class SceneController {
         // Spawn initial trees
         this.spawnTrees(this.currentTreeCount);
         
-        // Handle container resize - use ResizeObserver for reliable detection
-        this.resizeObserver = new ResizeObserver(() => this.onResize());
+        // Debounced resize handler (prevents resize spam)
+        this.resizeTimeout = null;
+        const debouncedResize = () => {
+            if (this.resizeTimeout) clearTimeout(this.resizeTimeout);
+            this.resizeTimeout = setTimeout(() => this.onResize(), 100);
+        };
+        
+        this.resizeObserver = new ResizeObserver(debouncedResize);
         this.resizeObserver.observe(this.container);
         
         // Also listen to panel resize events
-        this.container.addEventListener('panelresize', () => this.onResize());
-        window.addEventListener('resize', () => this.onResize());
+        this.container.addEventListener('panelresize', debouncedResize);
+        window.addEventListener('resize', debouncedResize);
         
         console.log('[SceneController] Initialization complete');
     }
