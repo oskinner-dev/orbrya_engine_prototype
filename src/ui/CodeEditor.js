@@ -74,9 +74,9 @@ export class CodeEditor {
                 <button class="editor-btn run-btn" id="run-code-btn" title="Run Code">▶ Run</button>
                 <button class="editor-btn" id="undo-btn" title="Undo">↩</button>
             </div>
-            <div class="code-editor" style="position:absolute; top:36px; left:0; right:0; bottom:100px; display:flex;">
-                <div class="line-numbers" id="line-numbers" style="overflow-y:auto;"></div>
-                <div class="code-area" id="code-area" contenteditable="true" spellcheck="false" style="flex:1; overflow:auto;"></div>
+            <div class="code-editor" style="position:absolute; top:36px; left:0; right:0; bottom:100px; display:flex; overflow:hidden;">
+                <div class="line-numbers" id="line-numbers" style="flex-shrink:0; padding:10px 8px; overflow:hidden;"></div>
+                <textarea id="code-area" spellcheck="false" style="flex:1; resize:none; border:none; outline:none; background:#0d0d1a; color:#e4e4e7; font-family:Consolas,Monaco,monospace; font-size:13px; line-height:1.5; padding:10px; tab-size:4;"></textarea>
             </div>
             <div class="console-output" id="console-output" style="position:absolute; bottom:0; left:0; right:0; height:100px;">
                 <div class="console-line info">📝 Ready - Edit the code and click Run</div>
@@ -195,7 +195,7 @@ public class MemoryDemo : ScenarioBase
         };
 
         this.currentScript = scripts[name] || scripts.TreeSpawner;
-        this.codeArea.textContent = this.currentScript;
+        this.codeArea.value = this.currentScript;
         this.updateLineNumbers();
         this.log('info', `📂 Loaded ${name}.cs`);
     }
@@ -204,7 +204,7 @@ public class MemoryDemo : ScenarioBase
 
     runCode() {
         console.log('[CodeEditor] Run button clicked');
-        const code = this.codeArea.textContent;
+        const code = this.codeArea.value;
         this.log('info', '▶ Running code...');
         
         const result = this.executor.execute(code);
@@ -214,7 +214,7 @@ public class MemoryDemo : ScenarioBase
     }
 
     validateCode() {
-        const code = this.codeArea.textContent;
+        const code = this.codeArea.value;
         const result = this.executor.validate(code);
         
         if (result.valid) {
@@ -300,7 +300,7 @@ public class MemoryDemo : ScenarioBase
     }
 
     updateLineNumbers() {
-        const lines = this.codeArea.textContent.split('\n').length;
+        const lines = this.codeArea.value.split('\n').length;
         let html = '';
         for (let i = 1; i <= lines; i++) {
             html += `<div>${i}</div>`;
@@ -338,12 +338,11 @@ public class MemoryDemo : ScenarioBase
     }
 
     getCode() {
-        return this.codeArea.textContent;
+        return this.codeArea.value;
     }
 
     setCode(code) {
-        this.codeArea.textContent = code;
-        this.highlightSyntax();
+        this.codeArea.value = code;
         this.updateLineNumbers();
     }
 }

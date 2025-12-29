@@ -246,7 +246,10 @@ html, body {
 }
 
 #code-editor-panel .code-area {
-    overflow: auto !important;
+    overflow-y: scroll !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    cursor: text;
 }
 
 #code-editor-panel .console-output {
