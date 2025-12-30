@@ -249,6 +249,42 @@ html, body {
     cursor: text;
 }
 
+/* Custom scrollbars for code editor */
+#code-editor-panel textarea,
+#code-editor-panel .code-area,
+#code-editor-panel .console-output {
+    scrollbar-width: thin;
+    scrollbar-color: #3d4f6f #0d0d1a;
+}
+
+#code-editor-panel textarea::-webkit-scrollbar,
+#code-editor-panel .code-area::-webkit-scrollbar,
+#code-editor-panel .console-output::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+#code-editor-panel textarea::-webkit-scrollbar-track,
+#code-editor-panel .code-area::-webkit-scrollbar-track,
+#code-editor-panel .console-output::-webkit-scrollbar-track {
+    background: #0d0d1a;
+    border-radius: 4px;
+}
+
+#code-editor-panel textarea::-webkit-scrollbar-thumb,
+#code-editor-panel .code-area::-webkit-scrollbar-thumb,
+#code-editor-panel .console-output::-webkit-scrollbar-thumb {
+    background: #3d4f6f;
+    border-radius: 4px;
+    border: 2px solid #0d0d1a;
+}
+
+#code-editor-panel textarea::-webkit-scrollbar-thumb:hover,
+#code-editor-panel .code-area::-webkit-scrollbar-thumb:hover,
+#code-editor-panel .console-output::-webkit-scrollbar-thumb:hover {
+    background: #667eea;
+}
+
 #code-editor-panel .console-output {
     flex-shrink: 0 !important;
 }
@@ -259,16 +295,24 @@ html, body {
 }
 
 .panel-content::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-.panel-content::-webkit-scrollbar-thumb {
-    background: var(--border-color);
+    background: #0d0d1a;
     border-radius: 4px;
 }
 
+.panel-content::-webkit-scrollbar-thumb {
+    background: #3d4f6f;
+    border-radius: 4px;
+    border: 2px solid #0d0d1a;
+}
+
 .panel-content::-webkit-scrollbar-thumb:hover {
-    background: var(--text-muted);
+    background: #667eea;
+}
+
+/* Firefox scrollbar styling */
+.panel-content {
+    scrollbar-width: thin;
+    scrollbar-color: #3d4f6f #0d0d1a;
 }
 
 
@@ -324,6 +368,30 @@ html, body {
 
 
 /* ===== PROFILER PANEL ===== */
+#profiler-panel .panel-content {
+    scrollbar-width: thin;
+    scrollbar-color: #3d4f6f #0d0d1a;
+}
+
+#profiler-panel .panel-content::-webkit-scrollbar {
+    width: 8px;
+}
+
+#profiler-panel .panel-content::-webkit-scrollbar-track {
+    background: #0d0d1a;
+    border-radius: 4px;
+}
+
+#profiler-panel .panel-content::-webkit-scrollbar-thumb {
+    background: #3d4f6f;
+    border-radius: 4px;
+    border: 2px solid #0d0d1a;
+}
+
+#profiler-panel .panel-content::-webkit-scrollbar-thumb:hover {
+    background: #667eea;
+}
+
 .profiler-section {
     margin-bottom: 15px;
 }
@@ -622,6 +690,35 @@ html, body {
 }
 
 /* ===== HIERARCHY PANEL ===== */
+#hierarchy-panel .panel-content,
+#hierarchy-panel .hierarchy-tree {
+    scrollbar-width: thin;
+    scrollbar-color: #3d4f6f #0d0d1a;
+}
+
+#hierarchy-panel .panel-content::-webkit-scrollbar,
+#hierarchy-panel .hierarchy-tree::-webkit-scrollbar {
+    width: 8px;
+}
+
+#hierarchy-panel .panel-content::-webkit-scrollbar-track,
+#hierarchy-panel .hierarchy-tree::-webkit-scrollbar-track {
+    background: #0d0d1a;
+    border-radius: 4px;
+}
+
+#hierarchy-panel .panel-content::-webkit-scrollbar-thumb,
+#hierarchy-panel .hierarchy-tree::-webkit-scrollbar-thumb {
+    background: #3d4f6f;
+    border-radius: 4px;
+    border: 2px solid #0d0d1a;
+}
+
+#hierarchy-panel .panel-content::-webkit-scrollbar-thumb:hover,
+#hierarchy-panel .hierarchy-tree::-webkit-scrollbar-thumb:hover {
+    background: #667eea;
+}
+
 .hierarchy-tree {
     font-size: 12px;
 }
