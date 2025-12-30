@@ -74,6 +74,12 @@ class OrbryaEngine {
         this.hierarchy = new Hierarchy(this.panelManager, this.sceneController);
         this.hierarchy.createPanel();
         
+        // Apply default layout (unless user has saved custom positions)
+        const hasSavedLayout = localStorage.getItem('orbrya-panel-states');
+        if (!hasSavedLayout) {
+            this.panelManager.applyLayout('default');
+        }
+        
         // Skip asset loading for now - use procedural geometry
         // Assets would need to be deployed with the site
         console.log('[Main] Using procedural assets (faster startup)');

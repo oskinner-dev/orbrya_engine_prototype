@@ -24,6 +24,14 @@ export class PanelManager {
         this.snapThreshold = 15;  // pixels to trigger snap
         this.snapGuides = [];     // visual snap indicators
         
+        // Grid configuration
+        this.gridSize = 20;       // snap to 20px grid
+        this.gridEnabled = true;  // can be toggled
+        
+        // Layout presets
+        this.layouts = this.defineLayouts();
+        this.currentLayout = 'default';
+        
         this.init();
     }
 
@@ -32,6 +40,157 @@ export class PanelManager {
         document.addEventListener('mouseup', this.handleMouseUp.bind(this));
         this.loadPanelStates();
         this.createSnapGuides();
+        this.setupLayoutButton();
+    }
+    
+    defineLayouts() {
+        // Layouts are defined as percentages of workspace
+        return {
+            default: {
+                name: 'Default',
+                panels: {
+                    'hierarchy-panel': { x: 0, y: 0, w: 0.15, h: 0.5 },
+                    'viewport-panel': { x: 0.15, y: 0, w: 0.55, h: 1 },
+                    'profiler-panel': { x: 0.70, y: 0, w: 0.30, h: 0.45 },
+                    'code-editor-panel': { x: 0.70, y: 0.45, w: 0.30, h: 0.55 }
+                }
+            },
+            codeFocus: {
+                name: 'Code Focus',
+                panels: {
+                    'hierarchy-panel': { x: 0, y: 0, w: 0.12, h: 0.4 },
+                    'viewport-panel': { x: 0.12, y: 0, w: 0.43, h: 1 },
+                    'profiler-panel': { x: 0.55, y: 0, w: 0.45, h: 0.35 },
+                    'code-editor-panel': { x: 0.55, y: 0.35, w: 0.45, h: 0.65 }
+                }
+            },
+            viewportFocus: {
+                name: 'Viewport Focus',
+                panels: {
+                    'hierarchy-panel': { x: 0, y: 0.7, w: 0.20, h: 0.3 },
+                    'viewport-panel': { x: 0, y: 0, w: 0.75, h: 0.7 },
+                    'profiler-panel': { x: 0.75, y: 0, w: 0.25, h: 0.5 },
+                    'code-editor-panel': { x: 0.75, y: 0.5, w: 0.25, h: 0.5 }
+                }
+            },
+            presentation: {
+                name: 'Presentation',
+                panels: {
+                    'hierarchy-panel': { x: -1, y: -1, w: 0, h: 0, hidden: true },
+                    'viewport-panel': { x: 0, y: 0, w: 0.65, h: 1 },
+                    'profiler-panel': { x: 0.65, y: 0, w: 0.35, h: 0.4 },
+                    'code-editor-panel': { x: 0.65, y: 0.4, w: 0.35, h: 0.6 }
+                }
+            }
+        };
+    }
+    
+    setupLayoutButton() {
+        const layoutBtn = document.getElementById('btn-layout');
+        if (!layoutBtn) return;
+        
+        // Create dropdown
+        const dropdown = document.createElement('div');
+        dropdown.id = 'layout-dropdown';
+        dropdown.className = 'layout-dropdown';
+        dropdown.style.cssText = `
+            display: none;
+            position: absolute;
+            top: 40px;
+            background: #16213e;
+            border: 1px solid #2d3748;
+            border-radius: 6px;
+            padding: 8px 0;
+            min-width: 160px;
+            z-index: 10000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        `;
+        
+        Object.entries(this.layouts).forEach(([key, layout]) => {
+            const item = document.createElement('div');
+            item.className = 'layout-item';
+            item.textContent = layout.name;
+            item.style.cssText = `
+                padding: 8px 16px;
+                cursor: pointer;
+                color: #e4e4e7;
+                font-size: 13px;
+            `;
+            item.addEventListener('mouseenter', () => item.style.background = '#1f2b47');
+            item.addEventListener('mouseleave', () => item.style.background = 'transparent');
+            item.addEventListener('click', () => {
+                this.applyLayout(key);
+                dropdown.style.display = 'none';
+            });
+            dropdown.appendChild(item);
+        });
+        
+        // Add separator and grid toggle
+        const sep = document.createElement('div');
+        sep.style.cssText = 'border-top: 1px solid #2d3748; margin: 8px 0;';
+        dropdown.appendChild(sep);
+        
+        const gridToggle = document.createElement('div');
+        gridToggle.className = 'layout-item';
+        gridToggle.innerHTML = `<span id="grid-check">${this.gridEnabled ? '✓' : ''}</span> Grid Snap (${this.gridSize}px)`;
+        gridToggle.style.cssText = `padding: 8px 16px; cursor: pointer; color: #e4e4e7; font-size: 13px;`;
+        gridToggle.addEventListener('mouseenter', () => gridToggle.style.background = '#1f2b47');
+        gridToggle.addEventListener('mouseleave', () => gridToggle.style.background = 'transparent');
+        gridToggle.addEventListener('click', () => {
+            this.gridEnabled = !this.gridEnabled;
+            document.getElementById('grid-check').textContent = this.gridEnabled ? '✓' : '';
+            console.log(`[Layout] Grid snap: ${this.gridEnabled}`);
+        });
+        dropdown.appendChild(gridToggle);
+        
+        layoutBtn.parentElement.appendChild(dropdown);
+        
+        layoutBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+        });
+        
+        // Close on click outside
+        document.addEventListener('click', () => {
+            dropdown.style.display = 'none';
+        });
+    }
+    
+    applyLayout(layoutKey) {
+        const layout = this.layouts[layoutKey];
+        if (!layout) return;
+        
+        const workspace = document.getElementById('workspace');
+        const wW = workspace.clientWidth;
+        const wH = workspace.clientHeight;
+        
+        Object.entries(layout.panels).forEach(([panelId, pos]) => {
+            const panel = document.getElementById(panelId);
+            if (!panel) return;
+            
+            if (pos.hidden) {
+                panel.style.display = 'none';
+                return;
+            }
+            
+            panel.style.display = '';
+            panel.style.left = `${Math.round(pos.x * wW)}px`;
+            panel.style.top = `${Math.round(pos.y * wH)}px`;
+            panel.style.width = `${Math.round(pos.w * wW)}px`;
+            panel.style.height = `${Math.round(pos.h * wH)}px`;
+        });
+        
+        this.currentLayout = layoutKey;
+        this.savePanelStates();
+        console.log(`[Layout] Applied: ${layout.name}`);
+        
+        // Trigger resize events for panels that need it
+        window.dispatchEvent(new Event('resize'));
+    }
+    
+    snapToGrid(value) {
+        if (!this.gridEnabled) return value;
+        return Math.round(value / this.gridSize) * this.gridSize;
     }
 
     createSnapGuides() {
@@ -329,10 +488,14 @@ export class PanelManager {
         let newX = startLeft + dx;
         let newY = startTop + dy;
         
-        // Apply snapping
+        // Apply panel/edge snapping first
         const snap = this.calculateSnap(id, newX, newY, width, height);
         newX = snap.snapX;
         newY = snap.snapY;
+        
+        // Apply grid snapping if no edge snap occurred
+        if (!snap.snappedV) newX = this.snapToGrid(newX);
+        if (!snap.snappedH) newY = this.snapToGrid(newY);
         
         // Show/hide snap guides
         if (snap.snappedV) {
@@ -372,6 +535,12 @@ export class PanelManager {
             newHeight = Math.max(minHeight, startHeight - dy);
             if (newHeight > minHeight) newTop = startTop + dy;
         }
+        
+        // Apply grid snapping to size
+        newWidth = this.snapToGrid(newWidth);
+        newHeight = this.snapToGrid(newHeight);
+        newLeft = this.snapToGrid(newLeft);
+        newTop = this.snapToGrid(newTop);
 
         panel.style.left = `${newLeft}px`;
         panel.style.top = `${newTop}px`;
