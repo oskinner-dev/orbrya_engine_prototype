@@ -15,6 +15,8 @@ import { VisualProfiler } from './ui/VisualProfiler.js';
 import { CodeEditor } from './ui/CodeEditor.js';
 import { Hierarchy } from './ui/Hierarchy.js';
 import { ProfilingTestSuite } from './utils/ProfilingTestSuite.js';
+import { ScenarioManager } from './scenarios/ScenarioManager.js';
+import { ScenarioTestRunner } from './utils/ScenarioTestRunner.js';
 
 class OrbryaEngine {
     constructor() {
@@ -24,6 +26,8 @@ class OrbryaEngine {
         this.profiler = null;
         this.codeEditor = null;
         this.hierarchy = null;
+        this.scenarioManager = null;
+        this.scenarioTestRunner = null;
         this.liteMode = false;
     }
 
@@ -84,6 +88,18 @@ class OrbryaEngine {
         // Assets would need to be deployed with the site
         console.log('[Main] Using procedural assets (faster startup)');
         
+        // Initialize Scenario Manager
+        this.updateLoadingStatus('Loading scenario system...');
+        this.scenarioManager = new ScenarioManager(
+            this.sceneController,
+            this.codeEditor,
+            this.profiler
+        );
+        await this.scenarioManager.init();
+        
+        // Initialize Test Runner (available via window.testRunner)
+        this.scenarioTestRunner = new ScenarioTestRunner(this);
+        
         // Start render loop
         this.sceneController.start();
         
@@ -102,6 +118,13 @@ class OrbryaEngine {
         
         // Expose for debugging
         window.orbrya = this;
+        window.testRunner = this.scenarioTestRunner;
+        
+        // Log available commands
+        console.log('[Main] Available commands:');
+        console.log('  - window.orbrya.runInfiniteForest() - Start the Infinite Forest scenario');
+        console.log('  - window.testRunner.runFullTest() - Run full test suite (3 iterations)');
+        console.log('  - Press S to start scenario, H for hint, R to reset');
     }
 
 
@@ -170,6 +193,30 @@ class OrbryaEngine {
                     profilerPanel.style.display = profilerPanel.style.display === 'none' ? '' : 'none';
                 }
             }
+            
+            // S - Start Scenario (Infinite Forest)
+            if (e.key === 's' || e.key === 'S') {
+                if (this.scenarioManager) {
+                    this.scenarioManager.loadScenario('infinite-forest');
+                    console.log('[Shortcut] S pressed - starting Infinite Forest scenario');
+                }
+            }
+            
+            // H - Get hint for current scenario
+            if (e.key === 'h' || e.key === 'H') {
+                if (this.scenarioManager) {
+                    this.scenarioManager.getHint();
+                    console.log('[Shortcut] H pressed - showing hint');
+                }
+            }
+            
+            // R - Reset current scenario
+            if (e.key === 'r' || e.key === 'R') {
+                if (this.scenarioManager?.currentScenario) {
+                    this.scenarioManager.reset();
+                    console.log('[Shortcut] R pressed - resetting scenario');
+                }
+            }
         });
     }
     
@@ -232,6 +279,25 @@ class OrbryaEngine {
             drawCalls: this.sceneController.getRenderer().info.render.calls,
             triangles: this.sceneController.getRenderer().info.render.triangles
         };
+    }
+
+    /**
+     * Start a scenario by ID
+     * @param {string} scenarioId - e.g., 'infinite-forest'
+     */
+    async startScenario(scenarioId) {
+        if (this.scenarioManager) {
+            return await this.scenarioManager.loadScenario(scenarioId);
+        }
+        return null;
+    }
+
+    /**
+     * Run the Infinite Forest test scenario
+     * Convenience method for testing
+     */
+    async runInfiniteForest() {
+        return await this.startScenario('infinite-forest');
     }
 }
 
