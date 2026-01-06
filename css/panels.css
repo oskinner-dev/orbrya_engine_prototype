@@ -1275,3 +1275,51 @@ html, body {
     padding-bottom: 4px;
     border-bottom: 1px solid rgba(45, 55, 72, 0.5);
 }
+
+
+/* ===== SNAP GUIDES ===== */
+.snap-guide {
+    position: absolute;
+    background: #667eea;
+    z-index: 9999;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.1s ease;
+}
+
+.snap-guide.visible {
+    opacity: 1;
+}
+
+.snap-guide.vertical {
+    width: 2px;
+    top: 0;
+    bottom: 0;
+    box-shadow: 0 0 8px #667eea, 0 0 16px rgba(102, 126, 234, 0.5);
+}
+
+.snap-guide.horizontal {
+    height: 2px;
+    left: 0;
+    right: 0;
+    box-shadow: 0 0 8px #667eea, 0 0 16px rgba(102, 126, 234, 0.5);
+}
+
+/* Grid visualization (optional, toggle with developer tools) */
+#workspace.show-grid {
+    background-image: 
+        linear-gradient(rgba(102, 126, 234, 0.1) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(102, 126, 234, 0.1) 1px, transparent 1px);
+    background-size: 20px 20px;
+}
+
+/* Panel dragging state */
+.panel.dragging {
+    opacity: 0.9;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+    cursor: move;
+}
+
+.panel.resizing {
+    opacity: 0.95;
+}

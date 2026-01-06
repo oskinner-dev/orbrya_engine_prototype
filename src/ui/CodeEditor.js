@@ -7,9 +7,11 @@
  * - Console output with errors/warnings
  * - Integration with CodeExecutor
  * - Real-time validation (debounced)
+ * - Progress tracking for scenarios
  */
 
 import { CodeExecutor } from '../engine/CodeExecutor.js';
+import { StudentPortal } from '../portal/StudentPortal.js';
 
 export class CodeEditor {
     constructor(panelManager, sceneController, profiler = null) {
@@ -28,6 +30,21 @@ export class CodeEditor {
         this.currentScript = '';
         this.parseTimeout = null;
         this.parseDelay = 500; // Debounce for N4000
+        
+        // Progress tracking state
+        this.scenarioId = this.getScenarioFromUrl();
+        this.progressMilestones = {
+            ranBuggyCode: false,      // 25%: First run with buggy code
+            identifiedProblem: false,  // 50%: Selected/focused on problem area
+            madeChange: false,         // 75%: Changed the while condition
+            ranFixedCode: false        // 100%: Successfully ran fixed code
+        };
+        this.originalCode = '';        // Store original to detect changes
+        this.hasInfiniteLoop = true;   // Track if code still has the bug
+        
+        // Session time tracking
+        this.sessionStartTime = Date.now();
+        this.lastSaveTime = Date.now();
         
         // C# syntax
         this.keywords = [
@@ -56,7 +73,115 @@ export class CodeEditor {
         // Guard: only execute on explicit Run click
         this.canExecute = false;
         
+        // Set up time tracking
+        this._setupTimeTracking();
+        
         return this;
+    }
+    
+    _setupTimeTracking() {
+        // Autosave time every 30 seconds
+        this.autoSaveInterval = setInterval(() => {
+            if (this.scenarioId) {
+                const now = Date.now();
+                const timeSpentSeconds = Math.floor((now - this.lastSaveTime) / 1000);
+                if (timeSpentSeconds >= 30) {
+                    const progress = this.calculateProgress();
+                    StudentPortal.updateScenarioProgress(this.scenarioId, progress, timeSpentSeconds);
+                    this.lastSaveTime = now;
+                    console.log(`[TimeTrack] Auto-saved ${timeSpentSeconds}s for ${this.scenarioId}`);
+                }
+            }
+        }, 30000);
+        
+        // Save time when leaving page
+        window.addEventListener('beforeunload', () => {
+            if (this.scenarioId) {
+                const now = Date.now();
+                const timeSpentSeconds = Math.floor((now - this.lastSaveTime) / 1000);
+                if (timeSpentSeconds > 0) {
+                    const progress = this.calculateProgress();
+                    StudentPortal.updateScenarioProgress(this.scenarioId, progress, timeSpentSeconds);
+                    console.log(`[TimeTrack] Saved ${timeSpentSeconds}s on exit`);
+                }
+            }
+        });
+        
+        // Also save on visibility change (tab switch, minimize)
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden && this.scenarioId) {
+                const now = Date.now();
+                const timeSpentSeconds = Math.floor((now - this.lastSaveTime) / 1000);
+                if (timeSpentSeconds > 0) {
+                    const progress = this.calculateProgress();
+                    StudentPortal.updateScenarioProgress(this.scenarioId, progress, timeSpentSeconds);
+                    this.lastSaveTime = now;
+                    console.log(`[TimeTrack] Saved ${timeSpentSeconds}s on tab hide`);
+                }
+            }
+        });
+    }
+
+    // ========== PROGRESS TRACKING ==========
+
+    getScenarioFromUrl() {
+        const params = new URLSearchParams(window.location.search);
+        return params.get('scenario') || 'infinite-forest';
+    }
+
+    calculateProgress() {
+        let progress = 0;
+        if (this.progressMilestones.ranBuggyCode) progress += 25;
+        if (this.progressMilestones.identifiedProblem) progress += 25;
+        if (this.progressMilestones.madeChange) progress += 25;
+        if (this.progressMilestones.ranFixedCode) progress += 25;
+        return progress;
+    }
+
+    saveProgress() {
+        if (!this.scenarioId) return;
+        
+        const progress = this.calculateProgress();
+        
+        // Calculate time spent since last save (in seconds)
+        const now = Date.now();
+        const timeSpentSeconds = Math.floor((now - this.lastSaveTime) / 1000);
+        this.lastSaveTime = now;
+        
+        StudentPortal.updateScenarioProgress(this.scenarioId, progress, timeSpentSeconds);
+        
+        // Check for completion
+        if (progress >= 100 && !this.progressMilestones.completed) {
+            this.progressMilestones.completed = true;
+            StudentPortal.completeScenario(this.scenarioId);
+            this.log('success', '🎉 SCENARIO COMPLETE! Great job fixing the bug!');
+            
+            // Show completion modal after a short delay
+            setTimeout(() => {
+                if (typeof window.showCompletionModal === 'function') {
+                    window.showCompletionModal('Great job fixing the infinite loop! The forest is running smoothly now.');
+                }
+            }, 1500);
+        }
+        
+        console.log(`[Progress] ${this.scenarioId}: ${progress}% (+${timeSpentSeconds}s)`, this.progressMilestones);
+    }
+
+    checkForCodeChange() {
+        const currentCode = this.codeArea.value;
+        
+        // Check if while condition was changed from "true"
+        const hasWhileTrue = /while\s*\(\s*true\s*\)/.test(currentCode);
+        const hasWhileCondition = /while\s*\([^)]*(?:treeCount|<|>|<=|>=|\d+)[^)]*\)/.test(currentCode);
+        
+        if (!hasWhileTrue && hasWhileCondition && !this.progressMilestones.madeChange) {
+            // Milestone 3 (75%) - They changed the while condition
+            this.progressMilestones.madeChange = true;
+            this.progressMilestones.identifiedProblem = true; // Ensure this is set
+            this.hasInfiniteLoop = false;
+            this.log('success', '✏️ Nice change! Click Run to test your fix.');
+            this.saveProgress();
+        }
     }
 
     createPanel() {
@@ -74,11 +199,11 @@ export class CodeEditor {
                 <button class="editor-btn run-btn" id="run-code-btn" title="Run Code">▶ Run</button>
                 <button class="editor-btn" id="undo-btn" title="Undo">↩</button>
             </div>
-            <div class="code-editor" style="position:absolute; top:36px; left:0; right:0; bottom:100px; display:flex; overflow:hidden;">
-                <div class="line-numbers" id="line-numbers" style="flex-shrink:0; padding:10px 8px; overflow:hidden;"></div>
-                <textarea id="code-area" spellcheck="false" style="flex:1; resize:none; border:none; outline:none; background:#0d0d1a; color:#e4e4e7; font-family:Consolas,Monaco,monospace; font-size:13px; line-height:1.5; padding:10px; tab-size:4;"></textarea>
+            <div class="code-editor" style="position:absolute; top:36px; left:0; right:0; bottom:120px; display:flex; overflow:hidden;">
+                <div class="line-numbers" id="line-numbers" style="flex-shrink:0; padding:12px 10px; overflow:hidden; font-size:14px; line-height:1.6;"></div>
+                <textarea id="code-area" spellcheck="false" style="flex:1; resize:none; border:none; outline:none; background:#0d0d1a; color:#e4e4e7; font-family:Consolas,Monaco,'Courier New',monospace; font-size:14px; line-height:1.6; padding:12px; tab-size:4;"></textarea>
             </div>
-            <div class="console-output" id="console-output" style="position:absolute; bottom:0; left:0; right:0; height:100px;">
+            <div class="console-output" id="console-output" style="position:absolute; bottom:0; left:0; right:0; height:120px; font-size:13px;">
                 <div class="console-line info">📝 Ready - Edit the code and click Run</div>
             </div>
         `;
@@ -88,12 +213,12 @@ export class CodeEditor {
             id: 'code-editor-panel',
             title: 'Code Editor',
             icon: '📝',
-            x: saved?.x ?? window.innerWidth - 500,
-            y: saved?.y ?? 50,
-            width: saved?.width ?? 480,
-            height: saved?.height ?? 520,
-            minWidth: 380,
-            minHeight: 300,
+            x: saved?.x ?? 0,
+            y: saved?.y ?? 0,
+            width: saved?.width ?? 550,
+            height: saved?.height ?? 600,
+            minWidth: 450,
+            minHeight: 400,
             content
         });
 
@@ -195,9 +320,13 @@ public class MemoryDemo : ScenarioBase
         };
 
         this.currentScript = scripts[name] || scripts.TreeSpawner;
+        this.originalCode = this.currentScript; // Store for change detection
         this.codeArea.value = this.currentScript;
         this.updateLineNumbers();
         this.log('info', `📂 Loaded ${name}.cs`);
+        
+        // Reset progress tracking for this script
+        this.hasInfiniteLoop = /while\s*\(\s*true\s*\)/.test(this.currentScript);
     }
 
     // ========== EXECUTION METHODS ==========
@@ -206,6 +335,25 @@ public class MemoryDemo : ScenarioBase
         console.log('[CodeEditor] Run button clicked');
         const code = this.codeArea.value;
         this.log('info', '▶ Running code...');
+        
+        // Progress tracking: Check if this is first run or run after fixing
+        const hasWhileTrue = /while\s*\(\s*true\s*\)/.test(code);
+        
+        if (hasWhileTrue && !this.progressMilestones.ranBuggyCode) {
+            // First run with buggy code - Milestone 1 (25%)
+            this.progressMilestones.ranBuggyCode = true;
+            this.log('info', '🔴 See the problem? The FPS dropped! Find and fix the bug.');
+            this.saveProgress();
+            
+            // After a delay, mark "identified problem" since they see the bad FPS
+            setTimeout(() => {
+                if (!this.progressMilestones.identifiedProblem) {
+                    this.progressMilestones.identifiedProblem = true;
+                    this.log('info', '💡 Hint: Look for "while (true)" - that\'s an infinite loop!');
+                    this.saveProgress();
+                }
+            }, 2000);
+        }
         
         const result = this.executor.execute(code);
         
@@ -241,6 +389,16 @@ public class MemoryDemo : ScenarioBase
         
         if (result.warnings.length > 0) {
             result.warnings.forEach(w => this.log('warning', w));
+        }
+        
+        // Progress tracking: Check if they ran fixed code successfully
+        const code = this.codeArea.value;
+        const hasWhileTrue = /while\s*\(\s*true\s*\)/.test(code);
+        
+        if (!hasWhileTrue && this.progressMilestones.madeChange && !this.progressMilestones.ranFixedCode) {
+            // They fixed the bug and ran it - Milestone 4 (100%)
+            this.progressMilestones.ranFixedCode = true;
+            this.saveProgress();
         }
         
         // Show FPS change after delay
@@ -281,6 +439,10 @@ public class MemoryDemo : ScenarioBase
     onCodeChange() {
         // Only update line numbers while typing - highlighting on blur
         this.updateLineNumbers();
+        
+        // Progress tracking: Check for code changes (debounced)
+        clearTimeout(this.changeCheckTimeout);
+        this.changeCheckTimeout = setTimeout(() => this.checkForCodeChange(), 300);
     }
 
     handleKeyDown(e) {

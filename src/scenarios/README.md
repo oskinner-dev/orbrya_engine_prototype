@@ -218,3 +218,242 @@ Students learn to:
 - Write proper termination conditions
 - Debug systematically
 - Think like systems architects
+
+
+## JSON-Based Scenario Definitions (NEW)
+
+Scenarios can now be defined using JSON configuration files, enabling:
+- Data-driven scenario creation without code changes
+- Curriculum alignment with education standards (CSTA, ISTE, Perkins V)
+- A/B testing different hint strategies
+- Easy localization and translation
+- Teacher/admin scenario customization
+
+### Definition File Structure
+
+Create a JSON file in `src/scenarios/definitions/`:
+
+```json
+{
+  "id": "infinite-forest",
+  "name": "The Infinite Forest",
+  "difficulty": "beginner",
+  "estimatedTime": "15-20 min",
+  
+  "story": {
+    "intro": "...",
+    "problem": "...",
+    "goal": "...",
+    "hint": "...",
+    "success": "...",
+    "failure": "..."
+  },
+  
+  "code": {
+    "language": "csharp",
+    "template": "// Buggy code here...",
+    "correctSolution": "while (treeCount < 50)",
+    "acceptablePatterns": [
+      {
+        "pattern": "treeCount\\s*<\\s*(\\d+)",
+        "feedback": "Great! You added a proper loop limit.",
+        "minValue": 10,
+        "maxValue": 175
+      }
+    ]
+  },
+  
+  "hints": [
+    {
+      "level": 1,
+      "delaySeconds": 60,
+      "text": "Look at the while loop condition...",
+      "trigger": "time"
+    }
+  ],
+  
+  "validation": {
+    "initialTreeCount": 500,
+    "targetTreeCount": 50,
+    "acceptableRange": { "min": 10, "max": 175 },
+    "targetFPS": 45
+  },
+  
+  "learningObjectives": [
+    {
+      "id": "lo-1",
+      "objective": "Understand infinite loops",
+      "standard": "CSTA 2-AP-17"
+    }
+  ],
+  
+  "metadata": {
+    "tags": ["loops", "debugging"],
+    "targetGrades": ["6", "7", "8"],
+    "standards": {
+      "csta": ["2-AP-12", "2-AP-17"],
+      "iste": ["1.5"]
+    }
+  }
+}
+```
+
+### Using the Scenario Loader
+
+```javascript
+import { ScenarioLoader } from './ScenarioLoader.js';
+
+const loader = new ScenarioLoader();
+const config = await loader.loadDefinition('infinite-forest');
+
+// Get formatted hints
+const hints = loader.getHints(config);
+
+// Validate student solution
+const result = loader.validateSolution(config, studentCode);
+
+// Get standards for curriculum mapping
+const standards = loader.getStandardsAlignment(config);
+```
+
+### File Organization
+
+```
+src/scenarios/
+├── definitions/
+│   ├── infinite-forest.json    # Beginner scenario
+│   ├── memory-leak-manor.json  # Intermediate (coming soon)
+│   └── draw-call-dungeon.json  # Advanced (coming soon)
+├── ScenarioLoader.js           # JSON loader utility
+├── Scenario.js                 # Base class
+├── InfiniteForest.js          # JavaScript implementation
+└── ScenarioManager.js         # Orchestration
+```
+
+
+## Scenario UI Components
+
+The `ui/` folder contains reusable UI components for the scenario experience.
+
+### Components
+
+| Component | Purpose |
+|-----------|---------|
+| `ScenarioUI` | Main UI class with all visual components |
+| `ScenarioUIIntegration` | Helper to connect scenarios to UI |
+
+### Inspector Panel
+
+Shows the AI assistant, story, problem, and goal:
+
+```javascript
+import { ScenarioUI } from './ui/ScenarioUI.js';
+
+const ui = new ScenarioUI().init();
+
+ui.showInspector({
+    intro: "The AI made a mistake...",
+    problem: "The loop never stops!",
+    goal: "Add a proper exit condition"
+});
+```
+
+### Hint System
+
+Progressive hints with visual feedback:
+
+```javascript
+// Set up hints array
+ui.setHints([
+    { level: 1, text: "Look at the while loop..." },
+    { level: 2, text: "Replace 'true' with a condition..." },
+    { level: 3, text: "Try: while (treeCount < 50)" }
+]);
+
+// Show hint button
+ui.showHintButton();
+
+// Show specific hint
+ui.showHint(1, "Look at the while loop...");
+
+// Pulse button to draw attention
+ui.pulseHintButton();
+```
+
+### Success Modal
+
+Celebration with stats and next actions:
+
+```javascript
+ui.showSuccess({
+    message: "You fixed the infinite loop!",
+    fps: 60,
+    time: 120,      // seconds
+    attempts: 2,
+    hintsUsed: 1,
+    score: 85
+});
+```
+
+### Error & Feedback
+
+```javascript
+// Show error toast (auto-hides after 4 seconds)
+ui.showError("That's not quite right. Try again!");
+
+// Show try again button
+ui.showTryAgain();
+```
+
+### Integration with Scenarios
+
+The easiest way to use ScenarioUI with a scenario:
+
+```javascript
+import { integrateScenarioUI } from './ui/index.js';
+
+// In your scenario's init():
+const integration = integrateScenarioUI(this);
+
+// The integration automatically:
+// - Shows inspector on scenario start
+// - Handles hint requests
+// - Shows success modal on completion
+// - Handles try again / reset
+```
+
+### Callbacks
+
+Set custom handlers for UI events:
+
+```javascript
+ui.setCallbacks({
+    onHintRequest: () => { /* track hint usage */ },
+    onTryAgain: () => { scenario.reset(); },
+    onNextScenario: () => { loadNextScenario(); },
+    onBackToDashboard: () => { window.location = '/dashboard.html'; },
+    onInspectorDismiss: (action) => { 
+        if (action === 'inspect') scenario.inspect();
+    }
+});
+```
+
+### Styling
+
+The UI uses glassmorphism styling to match the engine:
+
+- Dark theme with purple/blue accents
+- Smooth CSS animations
+- Responsive design
+- Celebration particles on success
+
+Custom themes can be added via CSS variables (coming soon).
+
+### File Structure
+
+```
+src/scenarios/ui/
+├── index.js              # Exports all components
+├── ScenarioUI.js         # Main UI class (1400+ lines)
+└── ScenarioUIIntegration.js  # Scenario-UI connector
+```

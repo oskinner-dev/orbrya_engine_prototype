@@ -81,11 +81,22 @@ export class SceneController {
         // Spawn initial trees
         this.spawnTrees(this.currentTreeCount);
         
-        // Debounced resize handler (prevents resize spam)
+        // Debounced resize handler (prevents resize spam that causes flickering)
         this.resizeTimeout = null;
+        this.isResizing = false;
+        
         const debouncedResize = () => {
             if (this.resizeTimeout) clearTimeout(this.resizeTimeout);
-            this.resizeTimeout = setTimeout(() => this.onResize(), 100);
+            
+            // Mark as resizing to pause render updates
+            if (!this.isResizing) {
+                this.isResizing = true;
+            }
+            
+            this.resizeTimeout = setTimeout(() => {
+                this.onResize();
+                this.isResizing = false;
+            }, 150); // Increased debounce time to prevent flicker
         };
         
         this.resizeObserver = new ResizeObserver(debouncedResize);
@@ -211,19 +222,21 @@ export class SceneController {
 
 
     onResize() {
-        // Use a small delay to let the DOM settle
-        requestAnimationFrame(() => {
-            const width = this.container.clientWidth;
-            const height = this.container.clientHeight;
-            
-            if (width === 0 || height === 0) return;
-            
-            this.camera.aspect = width / height;
-            this.camera.updateProjectionMatrix();
-            this.renderer.setSize(width, height, true);
-            
-            console.log(`[SceneController] Resized to ${width}x${height}`);
-        });
+        const width = this.container.clientWidth;
+        const height = this.container.clientHeight;
+        
+        // Skip if dimensions are invalid or unchanged
+        if (width === 0 || height === 0) return;
+        if (this._lastWidth === width && this._lastHeight === height) return;
+        
+        this._lastWidth = width;
+        this._lastHeight = height;
+        
+        this.camera.aspect = width / height;
+        this.camera.updateProjectionMatrix();
+        this.renderer.setSize(width, height, false); // false = don't update style
+        
+        console.log(`[SceneController] Resized to ${width}x${height}`);
     }
 
     update() {

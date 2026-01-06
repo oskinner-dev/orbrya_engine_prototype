@@ -41,45 +41,142 @@ export class PanelManager {
         this.loadPanelStates();
         this.createSnapGuides();
         this.setupLayoutButton();
+        this.createMinimizedDock();
+    }
+    
+    /**
+     * Create dock at bottom of screen for minimized panels
+     */
+    createMinimizedDock() {
+        if (document.getElementById('minimized-dock')) return;
+        
+        const dock = document.createElement('div');
+        dock.id = 'minimized-dock';
+        dock.className = 'minimized-dock';
+        dock.style.cssText = `
+            position: fixed;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 8px;
+            padding: 8px 12px;
+            background: rgba(15, 22, 41, 0.95);
+            border: 1px solid rgba(102, 126, 234, 0.3);
+            border-radius: 10px;
+            z-index: 2000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s, visibility 0.3s;
+        `;
+        
+        document.body.appendChild(dock);
+        this.minimizedDock = dock;
+    }
+    
+    /**
+     * Update dock visibility based on minimized panels
+     */
+    updateMinimizedDock() {
+        if (!this.minimizedDock) return;
+        
+        // Clear dock
+        this.minimizedDock.innerHTML = '';
+        
+        let hasMinimized = false;
+        
+        // Add button for each minimized panel
+        this.panels.forEach((data, id) => {
+            if (data.state.minimized) {
+                hasMinimized = true;
+                
+                const btn = document.createElement('button');
+                btn.className = 'dock-panel-btn';
+                btn.style.cssText = `
+                    display: flex;
+                    align-items: center;
+                    gap: 6px;
+                    padding: 8px 14px;
+                    background: rgba(102, 126, 234, 0.2);
+                    border: 1px solid rgba(102, 126, 234, 0.4);
+                    border-radius: 6px;
+                    color: #e0e0e0;
+                    font-size: 13px;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                `;
+                
+                // Get panel title and icon
+                const title = data.config.title || id;
+                const icon = data.element.querySelector('.panel-icon')?.textContent || '📋';
+                
+                btn.innerHTML = `<span>${icon}</span><span>${title}</span>`;
+                btn.title = `Restore ${title}`;
+                
+                btn.addEventListener('mouseenter', () => {
+                    btn.style.background = 'rgba(102, 126, 234, 0.4)';
+                    btn.style.transform = 'translateY(-2px)';
+                });
+                btn.addEventListener('mouseleave', () => {
+                    btn.style.background = 'rgba(102, 126, 234, 0.2)';
+                    btn.style.transform = 'translateY(0)';
+                });
+                btn.addEventListener('click', () => {
+                    this.showPanel(id);
+                });
+                
+                this.minimizedDock.appendChild(btn);
+            }
+        });
+        
+        // Show/hide dock
+        if (hasMinimized) {
+            this.minimizedDock.style.opacity = '1';
+            this.minimizedDock.style.visibility = 'visible';
+        } else {
+            this.minimizedDock.style.opacity = '0';
+            this.minimizedDock.style.visibility = 'hidden';
+        }
     }
     
     defineLayouts() {
         // Layouts are defined as percentages of workspace
+        // Code Editor on LEFT for maximum readability
         return {
             default: {
                 name: 'Default',
                 panels: {
-                    'hierarchy-panel': { x: 0, y: 0, w: 0.15, h: 0.5 },
-                    'viewport-panel': { x: 0.15, y: 0, w: 0.55, h: 1 },
-                    'profiler-panel': { x: 0.70, y: 0, w: 0.30, h: 0.45 },
-                    'code-editor-panel': { x: 0.70, y: 0.45, w: 0.30, h: 0.55 }
+                    'code-editor-panel': { x: 0, y: 0, w: 0.32, h: 1 },
+                    'viewport-panel': { x: 0.32, y: 0, w: 0.48, h: 1 },
+                    'profiler-panel': { x: 0.80, y: 0, w: 0.20, h: 0.50 },
+                    'hierarchy-panel': { x: 0.80, y: 0.50, w: 0.20, h: 0.50 }
                 }
             },
             codeFocus: {
                 name: 'Code Focus',
                 panels: {
-                    'hierarchy-panel': { x: 0, y: 0, w: 0.12, h: 0.4 },
-                    'viewport-panel': { x: 0.12, y: 0, w: 0.43, h: 1 },
-                    'profiler-panel': { x: 0.55, y: 0, w: 0.45, h: 0.35 },
-                    'code-editor-panel': { x: 0.55, y: 0.35, w: 0.45, h: 0.65 }
+                    'code-editor-panel': { x: 0, y: 0, w: 0.45, h: 1 },
+                    'viewport-panel': { x: 0.45, y: 0, w: 0.40, h: 1 },
+                    'profiler-panel': { x: 0.85, y: 0, w: 0.15, h: 0.50 },
+                    'hierarchy-panel': { x: 0.85, y: 0.50, w: 0.15, h: 0.50 }
                 }
             },
             viewportFocus: {
                 name: 'Viewport Focus',
                 panels: {
-                    'hierarchy-panel': { x: 0, y: 0.7, w: 0.20, h: 0.3 },
-                    'viewport-panel': { x: 0, y: 0, w: 0.75, h: 0.7 },
-                    'profiler-panel': { x: 0.75, y: 0, w: 0.25, h: 0.5 },
-                    'code-editor-panel': { x: 0.75, y: 0.5, w: 0.25, h: 0.5 }
+                    'code-editor-panel': { x: 0, y: 0.55, w: 0.30, h: 0.45 },
+                    'viewport-panel': { x: 0, y: 0, w: 0.75, h: 0.55 },
+                    'profiler-panel': { x: 0.75, y: 0, w: 0.25, h: 0.50 },
+                    'hierarchy-panel': { x: 0.75, y: 0.50, w: 0.25, h: 0.50 }
                 }
             },
             presentation: {
                 name: 'Presentation',
                 panels: {
                     'hierarchy-panel': { x: -1, y: -1, w: 0, h: 0, hidden: true },
-                    'viewport-panel': { x: 0, y: 0, w: 0.65, h: 1 },
-                    'profiler-panel': { x: 0.65, y: 0, w: 0.35, h: 0.4 },
-                    'code-editor-panel': { x: 0.65, y: 0.4, w: 0.35, h: 0.6 }
+                    'code-editor-panel': { x: 0, y: 0, w: 0.35, h: 1 },
+                    'viewport-panel': { x: 0.35, y: 0, w: 0.50, h: 1 },
+                    'profiler-panel': { x: 0.85, y: 0, w: 0.15, h: 1 }
                 }
             }
         };
@@ -142,6 +239,22 @@ export class PanelManager {
             console.log(`[Layout] Grid snap: ${this.gridEnabled}`);
         });
         dropdown.appendChild(gridToggle);
+        
+        // Add reset layout option
+        const resetItem = document.createElement('div');
+        resetItem.className = 'layout-item';
+        resetItem.textContent = '↺ Reset to Default';
+        resetItem.style.cssText = `padding: 8px 16px; cursor: pointer; color: #ff6b6b; font-size: 13px;`;
+        resetItem.addEventListener('mouseenter', () => resetItem.style.background = '#1f2b47');
+        resetItem.addEventListener('mouseleave', () => resetItem.style.background = 'transparent');
+        resetItem.addEventListener('click', () => {
+            localStorage.removeItem('orbrya_panels');
+            localStorage.removeItem('orbrya-panel-states');
+            this.applyLayout('default');
+            dropdown.style.display = 'none';
+            console.log('[Layout] Reset to default');
+        });
+        dropdown.appendChild(resetItem);
         
         layoutBtn.parentElement.appendChild(dropdown);
         
@@ -488,14 +601,18 @@ export class PanelManager {
         let newX = startLeft + dx;
         let newY = startTop + dy;
         
-        // Apply panel/edge snapping first
-        const snap = this.calculateSnap(id, newX, newY, width, height);
-        newX = snap.snapX;
-        newY = snap.snapY;
+        // Always apply grid snapping first
+        if (this.gridEnabled) {
+            newX = Math.round(newX / this.gridSize) * this.gridSize;
+            newY = Math.round(newY / this.gridSize) * this.gridSize;
+        }
         
-        // Apply grid snapping if no edge snap occurred
-        if (!snap.snappedV) newX = this.snapToGrid(newX);
-        if (!snap.snappedH) newY = this.snapToGrid(newY);
+        // Then apply panel/edge snapping (overrides grid if close to edge)
+        const snap = this.calculateSnap(id, newX, newY, width, height);
+        
+        // Use snapped position if within threshold
+        if (snap.snappedV) newX = snap.snapX;
+        if (snap.snappedH) newY = snap.snapY;
         
         // Show/hide snap guides
         if (snap.snappedV) {
@@ -536,11 +653,17 @@ export class PanelManager {
             if (newHeight > minHeight) newTop = startTop + dy;
         }
         
-        // Apply grid snapping to size
-        newWidth = this.snapToGrid(newWidth);
-        newHeight = this.snapToGrid(newHeight);
-        newLeft = this.snapToGrid(newLeft);
-        newTop = this.snapToGrid(newTop);
+        // Apply grid snapping to all values
+        if (this.gridEnabled) {
+            newWidth = Math.round(newWidth / this.gridSize) * this.gridSize;
+            newHeight = Math.round(newHeight / this.gridSize) * this.gridSize;
+            newLeft = Math.round(newLeft / this.gridSize) * this.gridSize;
+            newTop = Math.round(newTop / this.gridSize) * this.gridSize;
+            
+            // Re-enforce minimums after snapping
+            newWidth = Math.max(minWidth, newWidth);
+            newHeight = Math.max(minHeight, newHeight);
+        }
 
         panel.style.left = `${newLeft}px`;
         panel.style.top = `${newTop}px`;
@@ -572,6 +695,7 @@ export class PanelManager {
         if (!panelData) return;
         panelData.element.classList.add('hidden');
         panelData.state.minimized = true;
+        this.updateMinimizedDock();
     }
 
     toggleMaximize(id) {
@@ -612,6 +736,7 @@ export class PanelManager {
         panelData.element.classList.remove('hidden');
         panelData.state.minimized = false;
         this.focusPanel(id);
+        this.updateMinimizedDock();
     }
 
     getPanel(id) { return this.panels.get(id); }

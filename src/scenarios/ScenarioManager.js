@@ -53,7 +53,31 @@ export class ScenarioManager {
         
         console.log('[ScenarioManager] Ready. Available scenarios:', Object.keys(this.scenarios));
         
+        // Auto-load scenario from URL parameter
+        await this._loadScenarioFromUrl();
+        
         return this;
+    }
+    
+    /**
+     * Load scenario from URL parameter if present
+     */
+    async _loadScenarioFromUrl() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const scenarioId = urlParams.get('scenario');
+        
+        if (scenarioId && this.scenarios[scenarioId]) {
+            console.log(`[ScenarioManager] Auto-loading scenario from URL: ${scenarioId}`);
+            await this.loadScenario(scenarioId);
+            
+            // Update the selector UI
+            if (this._scenarioSelect) {
+                this._scenarioSelect.value = scenarioId;
+            }
+        } else if (scenarioId) {
+            console.warn(`[ScenarioManager] Unknown scenario in URL: ${scenarioId}`);
+            this.codeEditor?.log('warning', `⚠️ Unknown scenario: ${scenarioId}`);
+        }
     }
 
     /**
@@ -119,9 +143,9 @@ export class ScenarioManager {
             // Add new handler that uses scenario system
             newRunBtn.addEventListener('click', () => this.applyStudentFix());
             
-            // Update button text
-            newRunBtn.innerHTML = '✅ Apply Fix';
-            newRunBtn.title = 'Apply your fix to the scene';
+            // Keep button text as Run
+            newRunBtn.innerHTML = '▶ Run';
+            newRunBtn.title = 'Run your code';
         }
         
         console.log('[ScenarioManager] CodeEditor hooked');

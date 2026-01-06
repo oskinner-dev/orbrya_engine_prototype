@@ -78,10 +78,17 @@ class OrbryaEngine {
         this.hierarchy = new Hierarchy(this.panelManager, this.sceneController);
         this.hierarchy.createPanel();
         
-        // Apply default layout (unless user has saved custom positions)
-        const hasSavedLayout = localStorage.getItem('orbrya-panel-states');
-        if (!hasSavedLayout) {
+        // Apply default layout (force reset if layout version changed)
+        const LAYOUT_VERSION = 2; // Increment this to force layout reset
+        const savedLayoutVersion = localStorage.getItem('orbrya-layout-version');
+        const hasSavedLayout = localStorage.getItem('orbrya-panel-states') || localStorage.getItem('orbrya_panels');
+        
+        if (!hasSavedLayout || savedLayoutVersion !== String(LAYOUT_VERSION)) {
+            localStorage.removeItem('orbrya-panel-states');
+            localStorage.removeItem('orbrya_panels');
+            localStorage.setItem('orbrya-layout-version', String(LAYOUT_VERSION));
             this.panelManager.applyLayout('default');
+            console.log('[Main] Applied fresh default layout (version ' + LAYOUT_VERSION + ')');
         }
         
         // Skip asset loading for now - use procedural geometry
